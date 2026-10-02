@@ -18,17 +18,24 @@ import numpy as np
 import pandas as pd
 
 from data_factory.splits import get_splits
-from data_factory.wan import build_wan, load_function_words
 from main import get_parser, make_setting
 from models.baseline import (RelEntClassifier, feature_matrix, make_svm, make_wl_svm, wl_features)
+from vis import utils as wan_utils   # Christina's WAN code
 from vis.metrics import append_result, classification_metrics
+
+wan_utils.VERBOSE = False
 
 
 def load_wans(df, args):
-    fwords = load_function_words(args.function_words)
+    """Per essay: the WAN, the raw (un-normalised) scores, the word counts and the text length,
+    using Christina's functions from vis/utils.py (RelEnt needs the raw scores)."""
+    with open(args.function_words) as handle:
+        fwords = sorted(handle.read().split())          # same as construct_wan_from_text
     W_list, raw_list, counts_list, ntok_list = [], [], [], []
     for row in df.to_dict("records"):
-        raw, counts, ntok = build_wan(str(row["output_text"]), fwords, window=args.window, normalize=False)
+        words = wan_utils.cleanUp(str(row["output_text"]))
+        raw, counts = wan_utils.countFWs(words, fwords, args.window, "baseline")
+        raw, counts, ntok = np.asarray(raw, dtype=float), np.asarray(counts, dtype=float), len(words)
         rs = raw.sum(1, keepdims=True)
         W = np.divide(raw, rs, out=np.zeros_like(raw), where=rs != 0)
         if args.wan_source == "csv":

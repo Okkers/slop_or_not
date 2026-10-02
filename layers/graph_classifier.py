@@ -9,7 +9,7 @@ A model only has to say how to build one conv layer and how to call it (see mode
 
 forward(x, edge_index, edge_weight=None, batch=None) is deliberately the signature that
 torch_geometric.explain.Explainer / GNNExplainer expects, so trained checkpoints can be
-explained directly (see tests/test_explainer.py).
+explained directly
 """
 import torch
 import torch.nn as nn

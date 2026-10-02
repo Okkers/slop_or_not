@@ -24,7 +24,6 @@ uv add PACKAGE_NAME
 - models/ => model variants (GNNs + non-GNN baselines)
 - scripts/ => drivers for the experiments
 - splits/ => saved train/val/test splits (commit these, so everyone uses the same rows)
-- tests/ => quick correctness checks
 - vis/ => utils for visualisation, metrics, results tables
 
 ---
@@ -59,8 +58,9 @@ a control that ignores the edges (does the graph structure help at all?).
 What happens:
 1. every CSV row becomes a 117-node graph (`data_factory/graph_builder.py`). Node i is always
    function word i, so graphs are aligned across excerpts (handy for GNNExplainer).
-   The WAN is rebuilt from `output_text` with `data_factory/wan.py` (same result as `vis/utils.py`,
-   checked by `tests/test_wan.py`, ~2000x faster). `--wan_source csv` uses the CSV's WAN column instead.
+   The WAN is rebuilt from `output_text` with Christina's code in `vis/utils.py` (printing switched off
+   with `VERBOSE = False`, ~20 ms per essay; graphs are cached in `data/cache/` after the first run).
+   `--wan_source csv` uses the CSV's WAN column instead.
 2. rows are split 70/15/15, stratified by label; the split is saved in `splits/` and reused.
 3. the model trains with Adam + cross-entropy; the epoch with the lowest validation loss is kept.
 4. the test set is scored once: accuracy, precision, recall, F1 (primary metric), ROC-AUC.
@@ -101,17 +101,13 @@ uv run run_baselines.py --data_path data/persuade_w_wan.csv
 - `WAN-RelEnt`: the original WAN method (Segarra, Eisen & Ribeiro, 2015): nearest class profile by
   relative entropy.
 
-## 4. Experiments
+## 4. Run everything at once
 
-| proposal | how |
-|---|---|
-| E3 (GCN vs GAT, +GIN/SAGE) and baselines | `bash scripts/main_comparison.sh data/persuade_w_wan.csv` |
-| Feature / edge ablations, sensitivity | `bash scripts/ablations.sh data/persuade_w_wan.csv GCN` |
-| Unseen prompts; E2 unseen LLM | `bash scripts/generalization.sh data/persuade_w_wan.csv "<generator name>"` |
-| E1 (WAN vs co-occurrence graph) | TODO: add `--graph_type cooc` in `data_factory/data_loader.py::build_all_graphs` |
-| E4/E5 (GNNExplainer, GAT attention) | `exp/load.py` reloads any trained run; `tests/test_explainer.py` shows GNNExplainer + aggregating edge masks into a 117x117 class fingerprint; `models/GAT.py::attention_weights` |
+`bash scripts/main_comparison.sh data/persuade_w_wan.csv` trains all 5 GNNs (5 seeds each) and all baselines
+on the same split, then prints the summary table.
+Summarise results at any time: `uv run python -m vis.summarize` (add `--markdown` for a report-ready table).
 
-Summarise results: `uv run python -m vis.summarize --model_id E3` (add `--markdown` for the report).
+Other graph types (e.g. the content-word graph for E1) can be added in `data_factory/data_loader.py::build_all_graphs`.
 
 ## 5. Notes
 
@@ -121,4 +117,3 @@ Summarise results: `uv run python -m vis.summarize --model_id E3` (add `--markdo
   if you need the textbook GCN.
 - **Model selection.** Early stopping uses validation *loss*: on balanced data, predicting "machine" for
   everything already gives F1 = 0.67, so picking epochs by F1 can keep a useless model.
-- Tests: `uv run python -m tests.test_wan` and `uv run python -m tests.test_explainer`.

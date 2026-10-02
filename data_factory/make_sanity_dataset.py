@@ -31,7 +31,9 @@ import os
 import numpy as np
 import pandas as pd
 
-from data_factory.wan import build_wan, load_function_words, tokenize
+from vis import utils as wan_utils   # Christina's WAN code
+
+wan_utils.VERBOSE = False
 
 
 def load_sources(args):
@@ -73,7 +75,6 @@ def main():
     args = p.parse_args()
 
     rng = np.random.default_rng(args.seed)
-    fwords = load_function_words(args.function_words)
     blocks = [int(b) for b in args.shuffle_blocks.split(",")]
 
     rows = []
@@ -84,12 +85,12 @@ def main():
             versions = [versions[int(rng.integers(2))]]
         for lab, toks_out, gen in versions:
             txt = " ".join(toks_out)
-            W, _, _ = build_wan(txt, fwords, window=args.window)
-            rows.append({"task_prompt": name, "output_text": txt, "WAN": json.dumps(W.tolist()),
+            W = wan_utils.construct_wan_from_text(txt, windowWidth=args.window, functionWordsFile=args.function_words)
+            rows.append({"task_prompt": name, "output_text": txt, "WAN": json.dumps(W),
                          "label": lab, "generator": gen})
 
     for name, text in load_sources(args):
-        toks = tokenize(text)
+        toks = wan_utils.cleanUp(text)   # same cleaning the WAN uses: strip punctuation, lowercase, split
         if len(toks) < args.excerpt_words:           # short documents (e.g. essays): use them whole
             add(name, toks, blocks[len(rows) % len(blocks)])
             continue
@@ -107,3 +108,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

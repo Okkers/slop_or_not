@@ -27,7 +27,9 @@ import numpy as np
 import torch
 from torch_geometric.data import Data
 
-from data_factory.wan import build_wan
+from vis import utils as wan_utils   # Christina's WAN code (gabrielegan.com script)
+
+wan_utils.VERBOSE = False            # don't print every comparison while building thousands of graphs
 
 NODE_FEATURES = ("count", "freq", "onehot")
 
@@ -80,11 +82,13 @@ def wan_to_data(W: np.ndarray, counts: np.ndarray, n_tokens: int, label: int | N
     return data
 
 
-def text_to_data(text: str, label: int | None, fwords: list[str], *, window: int = 5,
+def text_to_data(text: str, label: int | None, function_words_file: str, *, window: int = 5,
                  precomputed_wan: str | None = None, **kwargs) -> Data:
     """Build the graph for one excerpt. If `precomputed_wan` (the JSON string from the
     CSV's WAN column) is given it is used as the adjacency; counts always come from text."""
-    W, counts, n_tok = build_wan(text, fwords, window=window)
+    W, counts, n_tok = wan_utils.construct_wan_from_text(
+        text, windowWidth=window, functionWordsFile=function_words_file, return_counts=True)
+    W, counts = np.asarray(W, dtype=np.float64), np.asarray(counts, dtype=np.float64)
     if precomputed_wan is not None:
         W_csv = np.asarray(json.loads(precomputed_wan), dtype=np.float64)
         if W_csv.shape != W.shape:

@@ -18,7 +18,6 @@ from torch.utils.data import Dataset
 
 from data_factory.graph_builder import text_to_data
 from data_factory.splits import get_splits
-from data_factory.wan import load_function_words
 
 _MEMORY_CACHE: dict[str, list] = {}   # so train/val/test in one run only build once
 
@@ -50,7 +49,6 @@ def build_all_graphs(df: pd.DataFrame, args) -> list:
         # return one PyG Data per row in the same way.
         raise NotImplementedError(f"graph_type '{args.graph_type}' not implemented yet (only 'wan')")
 
-    fwords = load_function_words(args.function_words)
     feats = [f.strip() for f in args.node_features.split(",") if f.strip()]
     extra_cols = [c.strip() for c in args.extra_node_cols.split(",") if c.strip()] if args.extra_node_cols else []
     use_csv_wan = args.wan_source == "csv"
@@ -60,8 +58,10 @@ def build_all_graphs(df: pd.DataFrame, args) -> list:
     graphs = []
     for i, row in enumerate(df.to_dict("records")):
         extra = [json.loads(row[c]) for c in extra_cols]
+        if i and i % 1000 == 0:
+            print(f"[data]   {i}/{len(df)}")
         graphs.append(text_to_data(
-            str(row["output_text"]), row.get("label"), fwords,
+            str(row["output_text"]), row.get("label"), args.function_words,
             window=args.window,
             precomputed_wan=row["WAN"] if use_csv_wan else None,
             node_features=feats, edge_weight=args.edge_weight, undirected=args.undirected,
@@ -122,3 +122,4 @@ class Dataset_MTT_Detection(Dataset):
 
     def __len__(self):
         return len(self.graphs)
+    
