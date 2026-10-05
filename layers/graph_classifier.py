@@ -48,7 +48,7 @@ class GraphClassifier(nn.Module):
         self.norms = nn.ModuleList()
         self.roots = nn.ModuleList()
         # Separate "root" weight for the node's own features: h_i <- conv(h)_i + W_root h_i.
-        # GCN/GAT/GIN otherwise push a node's own one-hot and its neighbours' one-hots through
+        # GCN/GAT otherwise push a node's own one-hot and its neighbours' one-hots through
         # the same matrix, so "the -> of" and "of -> the" become almost indistinguishable and
         # word-ORDER information is lost (SAGE and MLP already have this term).
         self.use_root = bool(args.root_weight) and self.has_root_option

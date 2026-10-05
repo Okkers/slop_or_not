@@ -52,7 +52,7 @@ GNNs beat it. Use it to check the pipeline works, not as a result.
 uv run main.py --data_path data/persuade_w_wan.csv --model GCN
 uv run main.py --data_path data/persuade_w_wan.csv --model GAT --itr 5      # 5 seeds, prints mean ± std
 ```
-Models (`--model`): `GCN`, `GAT` (`--gat_v2 true` for GATv2), `GIN`, `SAGE` (GraphSAGE), and `MLP`,
+Models (`--model`): `GCN`, `GAT` (`--gat_v2 true` for GATv2), `SAGE` (GraphSAGE), and `MLP`,
 a control that ignores the edges (does the graph structure help at all?).
 
 What happens:
@@ -77,7 +77,7 @@ Useful flags:
 | `--split` | `random` | `group` (hold out whole `--group_col` values, e.g. prompts) or `generator` (E2) |
 | `--num_layers / --hidden_dim / --dropout` | `2 / 64 / 0.3` | |
 | `--readout` | `sum` | `mean`, `max`, `meanmax` |
-| `--root_weight` | `true` | separate weight for a node's own features in GCN/GAT/GIN (see note below) |
+| `--root_weight` | `true` | separate weight for a node's own features in GCN/GAT (see note below) |
 | `--es_metric` | `loss` | validation quantity used to choose the best epoch |
 | `--is_training 0` | | only re-test a saved checkpoint |
 
@@ -88,22 +88,18 @@ Outputs:
 - `results/<setting>/metrics.json`, `predictions.csv` (per row: true label, P(machine), prompt, generator)
 - `results/results.csv`: one row per run, shared with the baselines
 
-## 3. Baselines (`run_baselines.py`)
+## 3. SVM Baseline (`run_baselines.py`)
 
-The course requires an SVM and a traditional graph-ML method. They use the same CSV, split and results table:
+The course requires an SVM baseline. They use the same CSV, split and results table:
 ```
 uv run run_baselines.py --data_path data/persuade_w_wan.csv
 ```
 - `SVM-<features>`: SVM on `freq` (function-word frequencies), `freq+graphstats` (plus 16 graph-level
   WAN statistics) and `freq+wan` (plus the flattened WAN). Kernel and C are picked on the validation set.
-- `WL-kernel-SVM`: Weisfeiler-Lehman subtree kernel (Shervashidze et al., 2011) on the WAN with weak
-  edges removed (threshold picked on validation).
-- `WAN-RelEnt`: the original WAN method (Segarra, Eisen & Ribeiro, 2015): nearest class profile by
-  relative entropy.
 
 ## 4. Run everything at once
 
-`bash scripts/main_comparison.sh data/persuade_w_wan.csv` trains all 5 GNNs (5 seeds each) and all baselines
+`bash scripts/main_comparison.sh data/persuade_w_wan.csv` trains all 4 GNNs (5 seeds each) and SVM baseline
 on the same split, then prints the summary table.
 Summarise results at any time: `uv run python -m vis.summarize` (add `--markdown` for a report-ready table).
 

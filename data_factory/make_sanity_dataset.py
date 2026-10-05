@@ -12,9 +12,9 @@ therefore stay near 50% accuracy, while the GNNs should beat it. That makes it a
 end-to-end test that the training pipeline really uses the graph structure.
 It is NOT a stand-in for real machine-generated text.
 
-(--paired puts both versions of every excerpt in the data. Then memorising methods such as
-the WL kernel score BELOW chance, because a test excerpt's most similar training graph is
-its own twin with the opposite label.)
+(--paired puts both versions of every excerpt in the data. Then memorising methods can score
+BELOW chance, because a test excerpt's most similar training graph is its own twin with the
+opposite label.)
 
 Each shuffled excerpt uses one of --shuffle_blocks (stored in the `generator` column,
 e.g. "shuffle6"), so --split generator can be tested too.

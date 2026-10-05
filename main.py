@@ -25,7 +25,7 @@ def get_parser():
 
     g = p.add_argument_group("basic")
     g.add_argument("--is_training", type=int, default=1, help="1 = train + test, 0 = only test a saved checkpoint")
-    g.add_argument("--model", default="GCN", help="GCN | GAT | GIN | SAGE | MLP (no-graph control)")
+    g.add_argument("--model", default="GCN", help="GCN | GAT | SAGE | MLP (no-graph control)")
     g.add_argument("--model_id", default="run", help="free-text tag for this experiment, e.g. E3 or abl_edges")
     g.add_argument("--itr", type=int, default=1, help="number of repeats with different seeds (seed, seed+1, ...)")
     g.add_argument("--seed", type=int, default=2026, help="training seed (init, batch order)")
@@ -68,7 +68,7 @@ def get_parser():
     g.add_argument("--readout", default="sum", choices=["mean", "sum", "max", "meanmax"])
     g.add_argument("--norm", default="batch", choices=["batch", "none"])
     g.add_argument("--root_weight", type=str2bool, default=True,
-                   help="GCN/GAT/GIN: add a separate linear term for the node's own features (skip connection)")
+                   help="GCN/GAT: add a separate linear term for the node's own features (skip connection)")
     g.add_argument("--heads", type=int, default=4, help="GAT attention heads")
     g.add_argument("--attn_dropout", type=float, default=0.1, help="GAT attention dropout")
     g.add_argument("--gat_v2", type=str2bool, default=False)
