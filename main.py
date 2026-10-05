@@ -1,9 +1,11 @@
 """
-Train / evaluate graph classifiers (human = 0 vs machine = 1) on function-word WANs.
+Train / evaluate graph classifiers (human = 0 vs machine = 1) on function-word WANs
+or on all-word co-occurrence graphs.
 
 Quick start (see README.md for more):
     uv run main.py --data_path data/persuade_w_wan.csv --model GCN
     uv run main.py --data_path data/persuade_w_wan.csv --model GAT --itr 5
+    uv run main.py --data_path data/persuade_w_wan.csv --model GCN --graph_type cooc   # needs the COOC column
 """
 import argparse
 import json
@@ -21,7 +23,7 @@ def str2bool(v):
 
 
 def get_parser():
-    p = argparse.ArgumentParser(description="Slop or not? GNN training on WANs")
+    p = argparse.ArgumentParser(description="Slop or not? GNN training on WAN or co-occurrence graphs")
 
     g = p.add_argument_group("basic")
     g.add_argument("--is_training", type=int, default=1, help="1 = train + test, 0 = only test a saved checkpoint")
@@ -35,13 +37,16 @@ def get_parser():
     g = p.add_argument_group("data")
     g.add_argument("--data_path", default="data/persuade_w_wan.csv", help="CSV from data_factory/data_generator.py")
     g.add_argument("--function_words", default="data/function_words.txt")
-    g.add_argument("--graph_type", default="wan", help="wan (content-word 'cooc' graph: TODO for E1)")
+    g.add_argument("--graph_type", default="wan", choices=["wan", "cooc"],
+                   help="wan: 117 function-word nodes; cooc: every word of the text is a node, read from the "
+                        "COOC column (add it with: uv run python -m data_factory.cooc --data_path ...)")
     g.add_argument("--wan_source", default="text", choices=["text", "csv"],
-                   help="text: rebuild the WAN from output_text (needed to vary --window / function words); "
-                        "csv: use the precomputed WAN column")
-    g.add_argument("--window", type=int, default=5, help="WAN window width (only used with --wan_source text)")
+                   help="wan only. text: rebuild the WAN from output_text (needed to vary --window / function "
+                        "words); csv: use the precomputed WAN column")
+    g.add_argument("--window", type=int, default=5,
+                   help="window width. wan: used to build the WAN; cooc: must match the window cooc.py used")
     g.add_argument("--node_features", default="count,freq,emb",
-                   help="comma list from: count, freq, emb (pre-trained word vectors), onehot")
+                   help="comma list from: count, freq, emb (pre-trained word vectors), onehot (wan only)")
     g.add_argument("--embeddings", default="glove-wiki-gigaword-100",
                    help="pre-trained word vectors for 'emb' (any gensim-downloader name, "
                         "e.g. word2vec-google-news-300)")

@@ -1,21 +1,24 @@
 """
-Turns one text (or one pre-computed WAN) into a PyTorch-Geometric `Data` graph.
+Turns one text into a PyTorch-Geometric `Data` graph, in one of two ways (--graph_type):
 
-Every WAN graph has the SAME node set: node i == function word i (alphabetical order
-from function_words.txt). Words that do not occur in the text stay in the graph as
-isolated nodes with zero count. This keeps graphs aligned across excerpts, which is
-what lets GNNExplainer masks be averaged into class-level "fingerprints" (RQ2).
+wan   text_to_data: every graph has the SAME node set: node i == function word i (alphabetical
+      order from function_words.txt). Words that do not occur in the text stay in the graph as
+      isolated nodes with zero count. This keeps graphs aligned across excerpts, which is
+      what lets GNNExplainer masks be averaged into class-level "fingerprints" (RQ2).
+cooc  cooc_to_data: one node per unique word of THIS text (read from the COOC column made by
+      data_factory/cooc.py), so every graph has its own words and its own size.
+Both end in wan_to_data, so node features and edges are made the same way for both.
 
 Node features (choose with --node_features, comma separated, order is kept):
     count   log(1 + raw count of the function word in the text)
     freq    occurrences per 100 tokens (normalised frequency)
     emb     pre-trained word vector of the word (default: GloVe, 100 numbers; see
             data_factory/embeddings.py and --embeddings); unknown words get zeros
-    onehot  identity of the function word (117 numbers); the old setting, kept for comparison
+    onehot  identity of the function word (117 numbers); the old setting, kept for comparison (wan only)
     + any --extra_node_cols: CSV columns holding a JSON list with one value per
-      function word (e.g. a future per-word perplexity column)
+      function word (e.g. a future per-word perplexity column) (wan only)
 
-Edges (--edge_weight):
+Edges (--edge_weight), the same for both graph types:
     wan     directed edge i->j for every W[i, j] > 0, weight = W[i, j]
     binary  same edges, weight = 1  (the "unweighted" ablation)
 --undirected symmetrises the WAN first: W <- (W + W^T) / 2
@@ -102,3 +105,14 @@ def text_to_data(text: str, label: int | None, function_words_file: str, *, wind
                              "use the same function_words.txt that generated the CSV")
         W = W_csv
     return wan_to_data(W, counts, n_tok, label, **kwargs)
+
+
+def cooc_to_data(g: dict, label: int | None, **kwargs) -> Data:
+    """Build the graph for one COOC cell (the parsed JSON made by data_factory/cooc.py).
+    Node i = word g["nodes"][i]. The edge list is unpacked into a square matrix, so the rest
+    is exactly the WAN path (wan_to_data)."""
+    n = len(g["nodes"])
+    W = np.zeros((n, n))
+    for a, b, w in g["edges"]:
+        W[a, b] = w
+    return wan_to_data(W, np.asarray(g["counts"], dtype=np.float64), g["n_tokens"], label, **kwargs)

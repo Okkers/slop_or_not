@@ -1,24 +1,22 @@
-"""
-Word co-occurrence graph per text built the same way as the WAN but over ALL words.
-
-    uv run python -m data_factory.cooc --data_path data/persuade_w_wan.csv
-
-adds a column `COOC` to the CSV (written back to the same file unless you give --out).
-The cell is JSON:  {"nodes": [...words...], "counts": [...], "n_tokens": T_words,
-                    "edges": [[a, b, count, pmi], ...]}      (a, b = positions in "nodes")
-
-"""
 import argparse
 import json
-import math
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 
 import pandas as pd
 
-from vis import utils as wan_utils   # using this for the cleanUp fn
+from vis import utils as wan_utils   # only for Christina's cleanUp (lowercase, strip punctuation, split); ALL words are kept
 
 wan_utils.VERBOSE = False
+
+
+def window_scores(words: list, window: int = 5) -> dict:
+    """{(a, b): score} before normalising: + 0.75**k when b is k+1 words after a (same as countFWs)."""
+    scores = defaultdict(float)
+    for i, a in enumerate(words):
+        for k in range(min(window, len(words) - 1 - i)):
+            scores[(a, words[i + 1 + k])] += 0.75 ** k
+    return scores
 
 
 def build_cooc(text: str, window: int = 5) -> dict:
@@ -27,43 +25,33 @@ def build_cooc(text: str, window: int = 5) -> dict:
     index = {w: i for i, w in enumerate(nodes)}
     word_counts = Counter(words)
 
-    pairs = Counter()
-    for i, a in enumerate(words):
-        for k in range(1, window + 1):
-            if i + k >= len(words):
-                break
-            pairs[(index[a], index[words[i + k]])] += 1
-
-    total = sum(pairs.values())
-    out_tot, in_tot = Counter(), Counter()
-    for (a, b), c in pairs.items():
-        out_tot[a] += c
-        in_tot[b] += c
-    edges = [[a, b, c, round(math.log(c * total / (out_tot[a] * in_tot[b])), 4)]
-             for (a, b), c in sorted(pairs.items())]
+    scores = window_scores(words, window)
+    row_sum = defaultdict(float)
+    for (a, _), s in scores.items():
+        row_sum[a] += s
+    edges = sorted([index[a], index[b], round(s / row_sum[a], 6)] for (a, b), s in scores.items())
 
     return {"nodes": nodes, "counts": [word_counts[w] for w in nodes],
-            "n_tokens": len(words), "edges": edges}
+            "n_tokens": len(words), "window": window, "edges": edges}
 
 
 def main():
     p = argparse.ArgumentParser(description="Add a co-occurrence graph column (COOC) to a dataset CSV")
     p.add_argument("--data_path", required=True, help="CSV with an output_text column")
     p.add_argument("--out", default="", help="where to save (default: overwrite --data_path)")
-    p.add_argument("--window", type=int, default=5, help="how many words ahead count as co-occurring")
-    p.add_argument("--column", default="COOC")
+    p.add_argument("--window", type=int, default=5, help="how many words ahead count as co-occurring (same as the WAN)")
     args = p.parse_args()
 
     df = pd.read_csv(args.data_path)
     t0 = time.time()
     graphs = [build_cooc(str(t), args.window) for t in df["output_text"]]
-    df[args.column] = [json.dumps(g, separators=(",", ":")) for g in graphs]
+    df["COOC"] = [json.dumps(g, separators=(",", ":")) for g in graphs]
 
     out = args.out or args.data_path
     df.to_csv(out, index=False)
     n_nodes = sum(len(g["nodes"]) for g in graphs) / len(graphs)
     n_edges = sum(len(g["edges"]) for g in graphs) / len(graphs)
-    print(f"added '{args.column}' to {len(df)} rows in {time.time() - t0:.1f}s "
+    print(f"added 'COOC' to {len(df)} rows in {time.time() - t0:.1f}s "
           f"(avg {n_nodes:.0f} words/nodes and {n_edges:.0f} edges per text) -> {out}")
 
 
