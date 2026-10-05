@@ -40,8 +40,11 @@ def get_parser():
                    help="text: rebuild the WAN from output_text (needed to vary --window / function words); "
                         "csv: use the precomputed WAN column")
     g.add_argument("--window", type=int, default=5, help="WAN window width (only used with --wan_source text)")
-    g.add_argument("--node_features", default="count,freq,onehot",
-                   help="comma list from: count, freq, onehot (empty string = constant feature)")
+    g.add_argument("--node_features", default="count,freq,emb",
+                   help="comma list from: count, freq, emb (pre-trained word vectors), onehot")
+    g.add_argument("--embeddings", default="glove-wiki-gigaword-100",
+                   help="pre-trained word vectors for 'emb' (any gensim-downloader name, "
+                        "e.g. word2vec-google-news-300)")
     g.add_argument("--extra_node_cols", default="",
                    help="CSV columns with a JSON list of one value per function word (e.g. perplexity)")
     g.add_argument("--edge_weight", default="wan", choices=["wan", "binary"])
@@ -137,3 +140,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

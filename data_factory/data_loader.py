@@ -23,7 +23,7 @@ _MEMORY_CACHE: dict[str, list] = {}   # so train/val/test in one run only build 
 
 
 def _graph_settings(args) -> dict:
-    return {
+    settings = {
         "graph_type": args.graph_type,
         "window": args.window,
         "node_features": args.node_features,
@@ -32,6 +32,9 @@ def _graph_settings(args) -> dict:
         "extra_node_cols": args.extra_node_cols,
         "wan_source": args.wan_source,
     }
+    if "emb" in args.node_features:   # different word vectors -> different node features
+        settings["embeddings"] = args.embeddings
+    return settings
 
 
 def _cache_key(args) -> str:
@@ -55,6 +58,16 @@ def build_all_graphs(df: pd.DataFrame, args) -> list:
     if use_csv_wan and "WAN" not in df.columns:
         raise ValueError("--wan_source csv but the CSV has no 'WAN' column")
 
+    emb = None
+    if "emb" in feats:
+        from data_factory.embeddings import load_vectors, vectors_for
+        print(f"[data] loading word vectors '{args.embeddings}' ...")
+        wv = load_vectors(args.embeddings)
+        with open(args.function_words) as handle:
+            fwords = sorted(handle.read().split())     # same order as the WAN nodes
+        emb, missing = vectors_for(fwords, wv)          # the same 117 vectors for every essay
+        print(f"[data] {emb.shape[1]} numbers per word; function words without a vector: {missing or 'none'}")
+
     graphs = []
     for i, row in enumerate(df.to_dict("records")):
         extra = [json.loads(row[c]) for c in extra_cols]
@@ -65,7 +78,7 @@ def build_all_graphs(df: pd.DataFrame, args) -> list:
             window=args.window,
             precomputed_wan=row["WAN"] if use_csv_wan else None,
             node_features=feats, edge_weight=args.edge_weight, undirected=args.undirected,
-            extra=extra, idx=i,
+            extra=extra, idx=i, emb=emb,
         ))
     return graphs
 

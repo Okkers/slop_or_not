@@ -69,7 +69,8 @@ Useful flags:
 
 | flag | default | meaning |
 |---|---|---|
-| `--node_features` | `count,freq,onehot` | log count, frequency per 100 tokens, one-hot word identity |
+| `--node_features` | `count,freq,emb` | log count, frequency per 100 tokens, pre-trained word vector (`onehot` = old word-identity feature) |
+| `--embeddings` | `glove-wiki-gigaword-100` | which pre-trained word vectors (downloaded once to `~/gensim-data`) |
 | `--extra_node_cols` | | CSV columns holding a JSON list of 117 values each (e.g. per-word perplexity) |
 | `--edge_weight` | `wan` | `binary` = unweighted ablation |
 | `--undirected` | `false` | symmetrise the WAN |

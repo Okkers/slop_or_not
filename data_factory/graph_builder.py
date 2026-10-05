@@ -9,8 +9,9 @@ what lets GNNExplainer masks be averaged into class-level "fingerprints" (RQ2).
 Node features (choose with --node_features, comma separated, order is kept):
     count   log(1 + raw count of the function word in the text)
     freq    occurrences per 100 tokens (normalised frequency)
-    onehot  identity of the function word (n-dim one-hot); lets the GNN learn a
-            per-word embedding, since the same node always means the same word
+    emb     pre-trained word vector of the word (default: GloVe, 100 numbers; see
+            data_factory/embeddings.py and --embeddings); unknown words get zeros
+    onehot  identity of the function word (117 numbers); the old setting, kept for comparison
     + any --extra_node_cols: CSV columns holding a JSON list with one value per
       function word (e.g. a future per-word perplexity column)
 
@@ -31,11 +32,11 @@ from vis import utils as wan_utils   # Christina's WAN code (gabrielegan.com scr
 
 wan_utils.VERBOSE = False            # don't print every comparison while building thousands of graphs
 
-NODE_FEATURES = ("count", "freq", "onehot")
+NODE_FEATURES = ("count", "freq", "emb", "onehot")
 
 
 def node_feature_matrix(counts: np.ndarray, n_tokens: int, features: list[str],
-                        extra: list[np.ndarray] | None = None) -> np.ndarray:
+                        extra: list[np.ndarray] | None = None, emb: np.ndarray | None = None) -> np.ndarray:
     n = len(counts)
     cols = []
     for f in features:
@@ -43,6 +44,10 @@ def node_feature_matrix(counts: np.ndarray, n_tokens: int, features: list[str],
             cols.append(np.log1p(counts)[:, None])
         elif f == "freq":
             cols.append((100.0 * counts / max(n_tokens, 1))[:, None])
+        elif f == "emb":
+            if emb is None:
+                raise ValueError("node feature 'emb' needs word vectors (loaded in data_loader.build_all_graphs)")
+            cols.append(emb)
         elif f == "onehot":
             cols.append(np.eye(n))
         else:
@@ -57,7 +62,8 @@ def node_feature_matrix(counts: np.ndarray, n_tokens: int, features: list[str],
 
 def wan_to_data(W: np.ndarray, counts: np.ndarray, n_tokens: int, label: int | None, *,
                 node_features: list[str], edge_weight: str = "wan", undirected: bool = False,
-                extra: list[np.ndarray] | None = None, idx: int | None = None) -> Data:
+                extra: list[np.ndarray] | None = None, idx: int | None = None,
+                emb: np.ndarray | None = None) -> Data:
     W = np.asarray(W, dtype=np.float64)
     if undirected:
         W = 0.5 * (W + W.T)
@@ -69,7 +75,7 @@ def wan_to_data(W: np.ndarray, counts: np.ndarray, n_tokens: int, label: int | N
     else:
         raise ValueError(f"unknown edge_weight '{edge_weight}' (wan|binary)")
 
-    x = node_feature_matrix(counts, n_tokens, node_features, extra)
+    x = node_feature_matrix(counts, n_tokens, node_features, extra, emb)
     data = Data(
         x=torch.tensor(x, dtype=torch.float32),
         edge_index=torch.tensor(np.stack([src, dst]), dtype=torch.long),
