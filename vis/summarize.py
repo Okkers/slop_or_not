@@ -3,6 +3,7 @@ Summarise results/results.csv into a mean ± std table (over seeds).
 
     uv run python -m vis.summarize                       # everything
     uv run python -m vis.summarize --model_id E3         # one experiment
+    uv run python -m vis.summarize --data qwen.csv       # one dataset
     uv run python -m vis.summarize --by model,edge_weight --markdown
 """
 import argparse
@@ -38,7 +39,7 @@ def main():
     p.add_argument("--results", default="results/results.csv")
     p.add_argument("--model_id", default="", help="only rows with this model_id")
     p.add_argument("--data", default="", help="only rows for this CSV file name")
-    p.add_argument("--by", default="model_id,model,data,split", help="columns to group by")
+    p.add_argument("--by", default="model_id,model,graph_type,data,split", help="columns to group by")
     p.add_argument("--markdown", action="store_true")
     args = p.parse_args()
 
@@ -56,3 +57,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
