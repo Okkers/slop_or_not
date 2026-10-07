@@ -11,6 +11,7 @@ Support vector machine on a feature vector extracted from each essay's WAN
 from __future__ import annotations
 
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC, LinearSVC
@@ -64,8 +65,28 @@ def feature_matrix(W_list, counts_list, ntok_list, kinds: str) -> np.ndarray:
     return np.concatenate(blocks, axis=1)
 
 
+# ----------------------------------------------------------------------------- models
 def make_svm(kernel: str, C: float):
     if kernel == "linear":
         return make_pipeline(StandardScaler(), LinearSVC(C=C, max_iter=20000))
     return make_pipeline(StandardScaler(), SVC(kernel=kernel, C=C, gamma="scale"))
 
+
+def make_rf(n_estimators: int = 500,
+            max_depth: int | None = None,
+            min_samples_leaf: int = 1,
+            max_features: str | float | None = "sqrt",
+            class_weight: str | None = "balanced",
+            seed: int = 0,
+            n_jobs: int = -1):
+    """Random Forest on the same feature vectors as the SVM"""
+
+    return RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        max_features=max_features,
+        class_weight=class_weight,
+        random_state=seed,
+        n_jobs=n_jobs,
+    )

@@ -18,15 +18,21 @@ import pandas as pd
 
 from data_factory.splits import get_splits
 from main import get_parser, make_setting
-from models.baseline import feature_matrix, make_svm
+from models.baseline import feature_matrix, make_svm, make_rf
 from vis import utils as wan_utils   # Christina's WAN code
 from vis.metrics import append_result, classification_metrics
 
 wan_utils.VERBOSE = False
 
+def _parse_max_features(s):
+    """For ramodm forest, 'sqrt' / 'log2' stay strings; numbers become floats (fraction of features)."""
+    return s if s in ("sqrt", "log2") else float(s)
 
 def load_wans(df, args):
-    """Per essay: the WAN, the word counts and the text length (Christina's code in vis/utils.py)."""
+    """
+    Per essay: the WAN, the word counts and the text length (Christina's code in vis/utils.py).
+    """
+
     W_list, counts_list, ntok_list = [], [], []
     for row in df.to_dict("records"):
         W, counts, ntok = wan_utils.construct_wan_from_text(
@@ -65,12 +71,12 @@ def evaluate(name, cfg, scores_val, scores_test, y, sp, args, df, threshold=0.0)
     return m
 
 
-def pick_best(candidates, fit_score, y_val):
+def pick_best(candidates, fit_score, y_val, threshold=0.0):
     """candidates: list of configs; fit_score(cfg) -> (val_scores, test_scores). Select by val accuracy."""
     best = None
     for cfg in candidates:
         sv, st = fit_score(cfg)
-        acc = classification_metrics(y_val, sv, threshold=0.0)["accuracy"]
+        acc = classification_metrics(y_val, sv, threshold=threshold)["accuracy"]
         if best is None or acc > best[0]:
             best = (acc, cfg, sv, st)
     return best[1], best[2], best[3]
@@ -78,15 +84,28 @@ def pick_best(candidates, fit_score, y_val):
 
 def main():
     p = get_parser()
+
+    # SVM
     g = p.add_argument_group("SVM baseline")
     g.add_argument("--svm_features", default="freq,freq+graphstats,freq+wan",
                    help="comma-separated feature sets, each a '+'-combination of freq, wan, graphstats; "
                         "one SVM (and one results row) per set")
     g.add_argument("--svm_C", default="0.01,0.1,1,10")
     g.add_argument("--svm_kernels", default="linear,rbf")
+
+    # RF
+    r = p.add_argument_group("Random Forest baseline")
+    r.add_argument("--rf", type=int, default=1, help="1 = also run the Random Forest, 0 = SVM only")
+    r.add_argument("--rf_features", default=None,
+                   help="feature sets for the RF (comma-separated); defaults to --svm_features")
+    r.add_argument("--rf_n_estimators", default="300,500")
+    r.add_argument("--rf_min_samples_leaf", default="1,3,5")
+    r.add_argument("--rf_max_features", default="sqrt,0.3")
+
     args = p.parse_args()
     args.model = "BASELINE"
 
+    # get data
     df = pd.read_csv(args.data_path)
     y = df["label"].astype(int).values
     sp = get_splits(df, args)
@@ -97,9 +116,16 @@ def main():
     print(f"built {len(W)} WANs in {time.time() - t0:.1f}s")
     Cs = [float(c) for c in args.svm_C.split(",")]
 
-    for feat_set in args.svm_features.split(","):
-        X = feature_matrix(W, counts, ntok, feat_set)
+    feat_cache = {}
 
+    def get_X(feat_set):
+        if feat_set not in feat_cache:
+            feat_cache[feat_set] = feature_matrix(W, counts, ntok, feat_set)
+        return feat_cache[feat_set]
+
+    # run SVM
+    for feat_set in args.svm_features.split(","):
+        X = get_X(feat_set)
         def fit_svm(cfg):
             clf = make_svm(cfg["kernel"], cfg["C"]).fit(X[tr], y[tr])
             return clf.decision_function(X[va]), clf.decision_function(X[te])
@@ -107,6 +133,26 @@ def main():
                  for k, c in itertools.product(args.svm_kernels.split(","), Cs)]
         cfg, sv, st = pick_best(cands, fit_svm, y[va])
         evaluate(f"SVM-{feat_set}", cfg, sv, st, y, sp, args, df)
+
+    # run RF
+    if args.rf:
+        n_ests = [int(v) for v in args.rf_n_estimators.split(",")]
+        leaves = [int(v) for v in args.rf_min_samples_leaf.split(",")]
+        mfs = [_parse_max_features(v) for v in args.rf_max_features.split(",")]
+        for feat_set in (args.rf_features or args.svm_features).split(","):
+            X = get_X(feat_set)
+
+            def fit_rf(cfg):
+                clf = make_rf(n_estimators=cfg["n_estimators"],
+                              min_samples_leaf=cfg["min_samples_leaf"],
+                              max_features=cfg["max_features"],
+                              seed=args.seed).fit(X[tr], y[tr])
+                return clf.predict_proba(X[va])[:, 1], clf.predict_proba(X[te])[:, 1]
+
+            cands = [{"features": feat_set, "n_estimators": n, "min_samples_leaf": l, "max_features": mf}
+                     for n, l, mf in itertools.product(n_ests, leaves, mfs)]
+            cfg, sv, st = pick_best(cands, fit_rf, y[va], threshold=0.5)
+            evaluate(f"RF-{feat_set}", cfg, sv, st, y, sp, args, df, threshold=0.5)
 
 
 if __name__ == "__main__":
