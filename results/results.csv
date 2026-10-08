@@ -1,0 +1,2 @@
+setting,model,model_id,data,split,graph_type,window,node_features,edge_weight,undirected,num_layers,hidden_dim,readout,root_weight,learning_rate,seed,best_epoch,val_accuracy,val_f1,val_auc,test_accuracy,test_precision,test_recall,test_f1,test_auc,test_tn,test_fp,test_fn,test_tp
+run_GCN_persuade_w_wan_wan-w5_nf-count+freq+onehot_ew-wan_sp-random_L2_H64_sum_lr0.001_seed2026,GCN,run,persuade_w_wan.csv,random,wan,5,"count,freq,onehot",wan,0,2,64,sum,1,0.001,2026,1,0.5,0.6666666666666666,0.7777777777777779,0.5,0.5,1.0,0.6666666666666666,0.33333333333333337,0,3,0,3
