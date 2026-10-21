@@ -9,6 +9,7 @@ from exp.tools import set_seed
 from exp.exp_explainer import GraphExplainer
 from main import get_parser, make_setting
 from vis.utils_explainer import explanation_to_matrices
+from vis.explain_vis import plot_comparison
 
 def get_explain_parser():
     # add the explainer arguments to the main parser
@@ -73,6 +74,8 @@ def explain_setting(args, setting):
     np.savez_compressed(path_npz, **explanation_to_matrices(results, test_data[0].num_nodes, test_data[0].num_features))
     print(f"Saved processed explanations to {path_npz}")
 
+    return results
+
 def main():
     args = get_explain_parser().parse_args()
     base_seed = args.seed
@@ -81,7 +84,11 @@ def main():
         args.seed = base_seed + ii
         set_seed(args.seed)
         setting = make_setting(args, args.seed)
-        explain_setting(args, setting)
+        results = explain_setting(args, setting)
+
+        fig, ax, pos = plot_comparison(results[0], threshold=0.8)
+
+        plot_comparison(results[1], threshold=0.8, pos=pos)
 
 if __name__ == "__main__":
     main()
