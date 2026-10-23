@@ -14,9 +14,14 @@ class Exp_Basic(object):
         if self.args.use_gpu and torch.cuda.is_available():
             device = torch.device(f"cuda:{self.args.gpu}")
             print(f"Use GPU: cuda:{self.args.gpu}")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+            print("mps")
         else:
             device = torch.device("cpu")
             print("Use CPU")
+
+
         return device
 
     def _get_data(self, flag):
