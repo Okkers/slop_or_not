@@ -22,7 +22,79 @@ def vprint(*args):
     if VERBOSE:
         print(*args)
 
+# Keys are lowercase with straight apostrophes.
+# Apostrophe-less forms are only included when they are not real English words
+# (so "cant", "wont", "its", "well", "ill" are deliberately NOT here).
+CONTRACTIONS = {
+    # irregular negations
+    "can't": "can not", "cannot": "can not", "won't": "will not", "shan't": "shall not",
+    "ain't": "is not", "shant": "shall not", "aint": "is not",
+    # regular negations
+    "isn't": "is not", "isnt": "is not", "aren't": "are not", "arent": "are not",
+    "wasn't": "was not", "wasnt": "was not", "weren't": "were not", "werent": "were not",
+    "hasn't": "has not", "hasnt": "has not", "haven't": "have not", "havent": "have not",
+    "hadn't": "had not", "hadnt": "had not", "doesn't": "does not", "doesnt": "does not",
+    "don't": "do not", "dont": "do not", "didn't": "did not", "didnt": "did not",
+    "couldn't": "could not", "couldnt": "could not", "wouldn't": "would not", "wouldnt": "would not",
+    "shouldn't": "should not", "shouldnt": "should not", "mustn't": "must not", "mustnt": "must not",
+    "needn't": "need not", "neednt": "need not", "mightn't": "might not", "mightnt": "might not",
+    "oughtn't": "ought not", "daren't": "dare not", "usedn't": "used not",
+    # "to be" forms
+    "i'm": "i am", "you're": "you are", "youre": "you are", "we're": "we are",
+    "they're": "they are", "theyre": "they are", "he's": "he is", "she's": "she is",
+    "it's": "it is", "that's": "that is", "thats": "that is", "there's": "there is",
+    "theres": "there is", "here's": "here is", "what's": "what is", "whats": "what is",
+    "who's": "who is", "where's": "where is", "how's": "how is", "when's": "when is",
+    "why's": "why is", "let's": "let us",
+    # "have" forms
+    "i've": "i have", "you've": "you have", "youve": "you have", "we've": "we have",
+    "weve": "we have", "they've": "they have", "theyve": "they have", "who've": "who have",
+    "would've": "would have", "wouldve": "would have", "could've": "could have",
+    "couldve": "could have", "should've": "should have", "shouldve": "should have",
+    "might've": "might have", "must've": "must have", "may've": "may have",
+    # "will" forms
+    "i'll": "i will", "you'll": "you will", "youll": "you will", "he'll": "he will",
+    "she'll": "she will", "it'll": "it will", "itll": "it will", "we'll": "we will",
+    "they'll": "they will", "theyll": "they will", "that'll": "that will", "thatll": "that will",
+    "there'll": "there will", "who'll": "who will", "what'll": "what will",
+    # "would/had" forms (mapped to would)
+    "i'd": "i would", "you'd": "you would", "he'd": "he would", "she'd": "she would",
+    "it'd": "it would", "we'd": "we would", "they'd": "they would", "that'd": "that would",
+    "there'd": "there would", "who'd": "who would", "what'd": "what did", "how'd": "how did",
+    # informal / archaic
+    "y'all": "you all", "ma'am": "madam", "o'clock": "of the clock", "'tis": "it is",
+    "'twas": "it was", "'twere": "it were", "gonna": "going to", "wanna": "want to",
+    "gotta": "got to", "gimme": "give me", "lemme": "let me", "kinda": "kind of",
+    "sorta": "sort of", "outta": "out of", "dunno": "do not know", "cuz": "because",
+    "'cause": "because", "'em": "them", "'til": "until",
+}
+
+
 def cleanUp(anytext):           # This does the removal of punctuation and lowercasing of the list 'anytext'
+    vprint("\nEntering cleanUp()")
+    anytext = anytext.replace("’", "'").replace("‘", "'")   # curly -> straight apostrophe, so the dictionary matches
+    punctuation_to_remove = [',', '.', '!', '?', '"', ':', ';', ')', '(', '[', ']']
+    vprint("Punctuation that will be removed: "+str(punctuation_to_remove))
+    for mark in (punctuation_to_remove):
+        anytext = anytext.replace(mark, "")
+    vprint("Text after punctuation and paragraphs processed:\n\n"+anytext)
+    anytext = anytext.lower().split()
+    vprint("Text after lowercased and made into list of strings:")
+    vprint(anytext)
+
+    expanded = []                                            # replace contractions that are in the dictionary
+    for word in anytext:
+        expanded.extend(CONTRACTIONS.get(word, word).split())
+    anytext = expanded
+
+    vprint("Text after contractions expanded:")
+    vprint(anytext)
+    vprint("length of text is "+str(len(anytext)))
+    vprint("End of cleanUp()")
+    return anytext
+
+# The original function was not tackling the contractions
+def cleanUp_original(anytext):           # This does the removal of punctuation and lowercasing of the list 'anytext'
     vprint("\nEntering cleanUp()")
     punctuation_to_remove = [',', '.', '!', '?', '"', ':', ';', ')', '(', '[', ']']
     vprint("Punctuation that will be removed: "+str(punctuation_to_remove))
