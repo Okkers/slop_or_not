@@ -144,9 +144,9 @@ Outputs:
 
 `<setting>` contains the graph type (`_wan-w5_` or `_cooc-w5_`), so WAN and COOC runs never overwrite each other.
 
-## 3. SVM baseline (`run_baselines.py`)
+## 3. SVM and RF baseline (`run_baselines.py`)
 
-The course requires an SVM baseline. It uses the same CSV, split and results table as the GNNs:
+The course requires an SVM baseline and RF. It uses the same CSV, split and results table as the GNNs:
 ```
 uv run run_baselines.py --data_path data/persuade_w_wan.csv
 ```

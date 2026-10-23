@@ -35,10 +35,10 @@ def get_parser():
     g.add_argument("--log_every", type=int, default=10, help="print every N epochs")
 
     g = p.add_argument_group("data")
-    g.add_argument("--data_path", default="data/persuade_w_wan.csv", help="CSV from data_factory/data_generator.py")
+    g.add_argument("--data_path", default="data/persuade_w_wan.csv", help="any CSV from data_factory/data_generator.py;")
     g.add_argument("--function_words", default="data/function_words.txt")
     g.add_argument("--graph_type", default="wan", choices=["wan", "cooc"],
-                   help="wan: 117 function-word nodes; cooc: every word of the text is a node, read from the "
+                   help="wan: 277 function-word nodes; cooc: every word of the text is a node, read from the "
                         "COOC column (add it with: uv run python -m data_factory.cooc --data_path ...)")
     g.add_argument("--wan_source", default="text", choices=["text", "csv"],
                    help="wan only. text: rebuild the WAN from output_text (needed to vary --window / function "
