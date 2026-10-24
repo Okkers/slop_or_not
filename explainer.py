@@ -8,28 +8,20 @@ from exp.exp_main import Exp_Main
 from exp.tools import set_seed
 from exp.exp_explainer import GraphExplainer
 from main import get_parser, make_setting, str2bool
-from vis.utils_explainer import explanation_to_matrices, plot_comparison, predict_with_edges, evaluate_edge_faithfulness, evaluate_edge_feature_faithfulness
-from vis.utils_ablation import evaluate_ablations
-from vis.utils_motifs import select_top_edges, detect_two_edge_motifs, aggregate_motifs, test_motif_differences, analyze_motifs, analyze_motif_feature_importance
-from vis.utils_node_feat_explainer import analyze_important_features, analyze_important_nodes
-# from vis.explain_vis import plot_comparison
+from vis.utils_explainer import explanation_to_matrices, evaluate_edge_faithfulness, analyze_important_nodes, plot_edge_faithfulness
+from vis.utils_motifs import analyze_motifs
 
 def get_explain_parser():
     # add the explainer arguments to the main parser
     p = get_parser()
     g = p.add_argument_group("explainer")
     g.add_argument("--explain_epochs", type=int, default=200)
-    g.add_argument("--node_mask_type", type=str, default="attributes", choices=["none", "object", "attributes"])
+    g.add_argument("--node_mask_type", type=str, default="attributes", choices=["none", "object", "attributes", "common_attributes"])
     g.add_argument("--edge_mask_type", type=str, default="object", choices=["none", "object"])
     g.add_argument("--top_fraction_edges", type=float, default=0.05)
     g.add_argument("--top_k", type=int, default=None)
     g.add_argument("--top_fraction_nodes", type=float, default=0.05)
     g.add_argument("--top_k_nodes", type=int, default=None)
-    g.add_argument("--top_fraction_features", type=float, default=0.10)
-    g.add_argument("--top_k_features", type=int, default=None)
-    g.add_argument("--edge_only", type=str2bool, default=True)
-    g.add_argument("--feature_only", type=str2bool, default=False)
-    g.add_argument("--node_only", type=str2bool, default=False)
     return p
 
 def explain_setting(args, setting):
@@ -132,7 +124,7 @@ def load_or_explain(args, setting):
 def main():
     args = get_explain_parser().parse_args()
     base_seed = args.seed
-    fwords_df = pd.read_csv("data/function_words_277.csv")
+    fwords_df = pd.read_csv("data/function_words.txt")
     fwords = fwords_df["word"].tolist()
 
     for ii in range(args.itr):
@@ -148,65 +140,24 @@ def main():
         exp.model.load_state_dict(torch.load(ckpt, map_location=exp.device))
         exp.model.eval()
 
-        # df_abl = evaluate_ablations(results, folder, path_base, exp.model, exp.device)
-        # print(df_abl)
-
         if args.edge_mask_type != "none":
-            if args.edge_only:
-                motif_stats = analyze_motifs(results, folder, path_base, fraction=args.top_fraction_edges, top_k=args.top_k, min_present=10)
+            motif_stats = analyze_motifs(results, folder, path_base, fraction=args.top_fraction_edges, top_k=args.top_k, min_present=10)
+            
+            df_faithfulness = evaluate_edge_faithfulness(
+                                    results=results,
+                                    folder=folder,
+                                    path_base=path_base,
+                                    model=exp.model,
+                                    device=exp.device,
+                                    seed=args.seed,
+                                    fraction=args.top_fraction_edges,
+                                    top_k=args.top_k,
+                                    random_repeats=100
+                                )
+            plot_edge_faithfulness(df_faithfulness, folder)
                 
-                df_faithfulness = evaluate_edge_faithfulness(
-                                        results=results,
-                                        folder=folder,
-                                        path_base=path_base,
-                                        model=exp.model,
-                                        device=exp.device,
-                                        seed=args.seed,
-                                        fraction=args.top_fraction_edges,
-                                        top_k=args.top_k,
-                                        random_repeats=100
-                                    )
-            else:
-                if args.node_mask_type != "none":
-                    if not args.node_only:
-                        motif_feat_df = analyze_motif_feature_importance(
-                            results,
-                            folder,
-                            path_base,
-                            edge_fraction=args.top_fraction_edges,
-                            edge_top_k=args.top_k,
-                            feature_fraction=args.top_fraction_features,
-                            feature_top_k=args.top_k_features
-                        )
-
-                        df_faithfulness_feat = evaluate_edge_feature_faithfulness(
-                            results=results,
-                            folder=folder,
-                            path_base=path_base,
-                            model=exp.model,
-                            device=exp.device,
-                            seed=args.seed,
-                            edge_fraction=args.top_fraction_edges,
-                            edge_top_k=args.top_k,
-                            feature_fraction=args.top_fraction_features,
-                            feature_top_k=args.top_k_features,
-                            random_repeats=100
-                        )
-
         if args.node_mask_type != "none":
-            if args.feature_only:
-                analyze_important_features(
-                    results=results,
-                    folder=folder,
-                    path_base=path_base,
-                    feature_names=None,
-                    fraction=args.top_fraction_features,
-                    top_k=args.top_k_features
-                )
-            elif args.node_only:
-                analyze_important_nodes(results, folder, path_base, fwords, fraction=args.top_fraction_nodes, top_k=args.top_k_nodes)
-
-
+            analyze_important_nodes(results, folder, path_base, fwords, fraction=args.top_fraction_nodes, top_k=args.top_k_nodes)
 
 
         # fig, ax, pos = plot_comparison(results[0], threshold=0.8)

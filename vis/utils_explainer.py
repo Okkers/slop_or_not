@@ -8,8 +8,6 @@ import math
 import pandas as pd
 import os
 import seaborn as sns
-from vis.utils_node_feat_explainer import select_top_features
-
 
 EDGE_GREY = "#b0b0b0"
 NODE_GREY = "#c4c4c4"
@@ -24,16 +22,33 @@ def explanation_to_matrices(explanations, amount_nodes, amount_features):
     node_importance = np.zeros((total_expl, amount_nodes))
 
     for i, explanation in enumerate(explanations):
-        src, dst = explanation["edge_index"].numpy()
+        src, dst = explanation["edge_index"].cpu().numpy()
         edge_presence[i, src, dst] = 1
+
         if explanation["edge_mask"] is not None:
-            edge_importance[i, src, dst] = explanation["edge_mask"].numpy()
+            edge_importance[i, src, dst] = explanation["edge_mask"].cpu().numpy()
+
         if explanation["node_mask"] is not None:
-            node_mask = explanation["node_mask"]
+            node_mask = explanation["node_mask"].detach().cpu().numpy()
+
             if node_mask.shape == (amount_nodes, amount_features):
+                # attributes: importance for node-feature pair
                 node_feature_importance[i] = node_mask
                 feature_importance[i] = node_mask.sum(axis=0)
                 node_importance[i] = node_mask.sum(axis=1)
+
+            elif node_mask.shape == (amount_nodes, 1):
+                # objectL one important score per node
+                node_importance[i] = node_mask[:, 0]
+
+            elif node_mask.shape == (1, amount_features):
+                # common_attributes: one importance score per feature
+                feature_importance[i] = node_mask[0]
+
+            else:
+                raise ValueError(
+                    f"Unexpected node mask shape: {node_mask.shape}"
+                )
 
     return {
         "rows": np.array([explanation["row"] for explanation in explanations]),
@@ -46,7 +61,196 @@ def explanation_to_matrices(explanations, amount_nodes, amount_features):
         "node_importance": node_importance
     }
 
+def get_node_importance(node_mask, node_mask_type="object"):
+    """
+    Convert node_mask into node importance if needed. 
+    """
+    if node_mask is None:
+        return None
 
+    mask = torch.as_tensor(node_mask).detach().cpu()
+
+    if mask.ndim == 1:
+        return mask
+
+    if node_mask_type == "object":
+        return mask[:,0]
+
+    elif node_mask_type == "attributes":
+        return mask.mean(dim=1)
+
+    else:
+        raise ValueError(
+            f"Unsupported node_mask_type: {node_mask_type}"
+        )
+
+def select_top_nodes(result, fraction=0.10, top_k=None, node_mask_type="object"):
+    """
+    Same as select_top_edges, but now for nodes.
+    """ 
+    node_mask = result["node_mask"]
+    if node_mask is None:
+        raise ValueError("Explanation has no node mask")
+
+    node_mask = torch.as_tensor(node_mask)
+
+    importance = get_node_importance(node_mask, node_mask_type=node_mask_type)
+
+    N = len(importance)
+
+    if top_k is not None:
+        k = min(top_k, N)
+    else:
+        k = math.ceil(fraction * N)
+
+    top_indices = torch.argsort(
+        importance,
+        descending=True
+    )[:k]
+
+    return {
+        "row": result["row"],
+        "label": result["label"],
+        "pred": result["pred"],
+        "selected_nodes": set(top_indices.tolist()),
+        "node_importance": importance
+    }
+
+def aggregate_important_words(results, selected_results, fwords):
+    graphs = []
+    all_words = set()
+
+    for original, selected in zip(results, selected_results):
+        if original["label"] != original["pred"]:
+            continue
+
+        N = original["x"].shape[0]
+
+        original_nodes = set(range(N))
+
+        selected_nodes = selected["selected_nodes"]
+
+        all_words.update(selected_nodes)
+
+        graphs.append({
+            "label": original["label"],
+            "original_nodes": original_nodes,
+            "selected_nodes": selected_nodes
+        })
+
+    rows = []
+    for node in sorted(all_words):
+        row = {
+            "node": node,
+            "word": fwords[node]
+        }
+
+        for cls, name in [(0, "human"), (1, "machine")]:
+            group = [
+                g for g in graphs
+                if g["label"] == cls
+            ]
+
+            present = sum(
+                node in g["original_nodes"]
+                for g in group
+            )
+
+            selected = sum(
+                node in g["selected_nodes"]
+                for g in group
+            )
+
+            row[f"{name}_present"] = present
+            row[f"{name}_selected"] = selected
+
+            row[f"{name}_rate"] = (
+                selected / present
+                if present > 0
+                else float("nan")
+            )
+
+        row["difference"] = (row["machine_rate"] - row["human_rate"])
+
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    return df
+
+def analyze_important_nodes(results, folder, path_base, fwords, fraction=0.10, top_k=None):
+    os.makedirs(folder, exist_ok=True)
+
+    fraction_name = (
+        f"k{top_k}nd" if top_k is not None
+        else f"{fraction:.2f}nd".replace(".","")
+    )
+
+    selected_results = [
+        select_top_nodes(
+            result,
+            fraction=fraction,
+            top_k=top_k
+        )
+        for result in results
+    ]
+
+    node_df = aggregate_important_words(results, selected_results, fwords)
+
+    selected_path = os.path.join(
+        folder,
+        f"{path_base}_selnod{fraction_name}.pth"
+    )
+
+    node_df_path = os.path.join(
+        folder,
+        f"{path_base}_nc{fraction_name}.csv"
+    )
+
+    torch.save(selected_results, selected_path)
+    node_df.to_csv(node_df_path, index=False)
+
+    print(f"Unique important words: {len(node_df)}")
+
+    return node_df
+
+def select_top_edges(result, fraction=0.05, top_k=None):
+    """
+    Selects the edges the GNNExplainer gives the highest weights to. 
+    Fraction: selects fraction % of the edges to be considered important.
+    top_k: selects the top k highest importance mask scores.
+    """
+    edge_index = result["edge_index"]
+    edge_mask = result["edge_mask"]
+
+    if edge_mask is None:
+        raise ValueError("Explanation has no edge mask")
+
+    valid = edge_index[0] != edge_index[1]
+    edge_index = edge_index[:, valid]
+    edge_mask = edge_mask[valid]
+
+    total_edges = edge_index.shape[1]
+
+    if top_k is not None:
+        k = min(top_k, total_edges)
+    else:
+        k = math.ceil(fraction * total_edges)
+
+    sorted_indices = torch.argsort(edge_mask, descending=True)
+    selected_indices = sorted_indices[:k]
+    selected_edges = edge_index[:, selected_indices]
+    selected_masks = edge_mask[selected_indices]
+
+    return {
+        "row": result["row"],
+        "label": result["label"],
+        "pred": result["pred"],
+        "edge_index": selected_edges,
+        "edge_masks_selected": selected_masks,
+        "num_edges_original": total_edges,
+        "num_edges_selected": k
+    }
 
 def predict_with_edges(model, result, keep_edges, device):
     """
@@ -56,60 +260,6 @@ def predict_with_edges(model, result, keep_edges, device):
 
     edge_index = result["edge_index"][:, keep_edges].to(device)
     edge_weight = result["edge_weight"][keep_edges].to(device)
-
-    batch = torch.zeros(
-        x.shape[0],
-        dtype=torch.long,
-        device=device
-    )
-
-    model.eval()
-
-    with torch.no_grad():
-        logits = model(
-            x,
-            edge_index,
-            edge_weight=edge_weight,
-            batch=batch
-        )
-
-        probabilities = torch.softmax(logits, dim=-1)
-
-    return probabilities[0].cpu()
-
-def predict_with_edges_features(
-    model,
-    result,
-    keep_edges,
-    keep_features,
-    device
-):
-    """
-    Predict using selected edges and features.
-
-    keep_edges: Boolean mask [E]
-    keep_features: Boolean mask [F]
-
-    Unselected edges are removed.
-    Unselected feature values are set to zero for all nodes.
-    """
-
-    x = result["x"].to(device).clone()
-
-    keep_edges = torch.as_tensor(
-        keep_edges, dtype=torch.bool, device=device
-    )
-
-    keep_features = torch.as_tensor(
-        keep_features, dtype=torch.bool, device=device
-    )
-
-    # Mask features
-    x[:, ~keep_features] = 0.0
-
-    # Select edges and their original WAN weights
-    edge_index = result["edge_index"].to(device)[:, keep_edges]
-    edge_weight = result["edge_weight"].to(device)[keep_edges]
 
     batch = torch.zeros(
         x.shape[0],
@@ -252,396 +402,7 @@ def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, 
     )
     return df_faithfulness
 
-def evaluate_edge_feature_faithfulness(
-    results,
-    folder,
-    path_base,
-    model,
-    device,
-    seed,
-    edge_fraction=0.05,
-    edge_top_k=None,
-    feature_fraction=0.10,
-    feature_top_k=None,
-    random_repeats=100
-):
-    """
-    Evaluate faithfulness of edge and feature explanations.
-
-    Experiments:
-    1. Edge-only
-    2. Feature-only
-    3. Edge + Feature
-    4. Random edges + random features
-
-    Sufficiency:
-        Original confidence - confidence using only selected components.
-
-    Comprehensiveness:
-        Original confidence - confidence after removing selected components.
-
-    Lower sufficiency is better.
-    Higher comprehensiveness is better.
-    """
-
-    os.makedirs(folder, exist_ok=True)
-
-    if random_repeats < 1:
-        raise ValueError("random_repeats must be at least 1")
-
-    rng = np.random.default_rng(seed)
-
-    rows = []
-
-    for result in results:
-
-        if result["label"] != result["pred"]:
-            continue
-
-        edge_index = result["edge_index"].detach().cpu()
-        edge_mask = result["edge_mask"]
-        node_mask = result["node_mask"]
-
-        if edge_mask is None or node_mask is None:
-            raise ValueError("Explanation requires edge and node masks")
-
-        edge_mask = torch.as_tensor(
-            edge_mask
-        ).detach().cpu().flatten()
-
-        node_mask = torch.as_tensor(
-            node_mask
-        ).detach().cpu()
-
-        N, F = result["x"].shape
-        E = edge_index.shape[1]
-
-        if node_mask.shape != (N, F):
-            raise ValueError("Expected node-feature mask [N, F]")
-
-        if edge_mask.numel() != E:
-            raise ValueError("Edge mask size does not match edge_index")
-
-        # ----------------------------------------
-        # STEP 1: Select important edges
-        # ----------------------------------------
-
-        eligible = torch.where(
-            edge_index[0] != edge_index[1]
-        )[0]
-
-        if edge_top_k is not None:
-            k_edges = min(edge_top_k, len(eligible))
-        else:
-            k_edges = math.ceil(edge_fraction * len(eligible))
-
-        if k_edges <= 0:
-            continue
-
-        sorted_indices = torch.argsort(
-            edge_mask[eligible],
-            descending=True
-        )
-
-        top_edge_indices = eligible[
-            sorted_indices[:k_edges]
-        ]
-
-        # Boolean masks
-        all_edges = torch.ones(E, dtype=torch.bool)
-
-        top_edges = torch.zeros(E, dtype=torch.bool)
-        top_edges[top_edge_indices] = True
-
-        # ----------------------------------------
-        # STEP 2: Select important features
-        # ----------------------------------------
-
-        # Uses mean feature importance across ALL nodes
-        selected_features_result = select_top_features(
-            result,
-            fraction=feature_fraction,
-            top_k=feature_top_k
-        )
-
-        top_feature_indices = sorted(
-            selected_features_result["selected_features"]
-        )
-
-        k_features = len(top_feature_indices)
-
-        if k_features == 0:
-            continue
-
-        all_features = torch.ones(F, dtype=torch.bool)
-
-        top_features = torch.zeros(F, dtype=torch.bool)
-        top_features[top_feature_indices] = True
-
-        # ----------------------------------------
-        # STEP 3: Original prediction
-        # ----------------------------------------
-
-        prob_original = predict_with_edges_features(
-            model,
-            result,
-            all_edges,
-            all_features,
-            device
-        )
-
-        predicted_class_original = int(
-            prob_original.argmax().item()
-        )
-
-        if predicted_class_original != result["pred"]:
-            raise ValueError(
-                f"Prediction mismatch for graph {result['row']}"
-            )
-
-        original_confidence = prob_original[
-            predicted_class_original
-        ].item()
-
-        # ----------------------------------------
-        # Helper for evaluating an intervention
-        # ----------------------------------------
-
-        def evaluate(keep_e, keep_f):
-
-            probabilities = predict_with_edges_features(
-                model,
-                result,
-                keep_e,
-                keep_f,
-                device
-            )
-
-            confidence = probabilities[
-                predicted_class_original
-            ].item()
-
-            flipped = int(
-                probabilities.argmax().item()
-                != predicted_class_original
-            )
-
-            return confidence, flipped
-
-        # ----------------------------------------
-        # STEP 4: Edge-only
-        # ----------------------------------------
-
-        # Sufficiency: only important edges, all features
-        edge_only_conf, edge_only_flip = evaluate(
-            top_edges,
-            all_features
-        )
-
-        # Comprehensiveness: remove important edges
-        edge_removed_conf, edge_removed_flip = evaluate(
-            ~top_edges,
-            all_features
-        )
-
-        # ----------------------------------------
-        # STEP 5: Feature-only
-        # ----------------------------------------
-
-        # Sufficiency: all edges, only important features
-        feature_only_conf, feature_only_flip = evaluate(
-            all_edges,
-            top_features
-        )
-
-        # Comprehensiveness: remove important features
-        feature_removed_conf, feature_removed_flip = evaluate(
-            all_edges,
-            ~top_features
-        )
-
-        # ----------------------------------------
-        # STEP 6: Edge + Feature
-        # ----------------------------------------
-
-        # Sufficiency: only important edges AND features
-        both_only_conf, both_only_flip = evaluate(
-            top_edges,
-            top_features
-        )
-
-        # Comprehensiveness: remove important edges AND features
-        both_removed_conf, both_removed_flip = evaluate(
-            ~top_edges,
-            ~top_features
-        )
-
-        # ----------------------------------------
-        # STEP 7: Random baseline
-        # ----------------------------------------
-
-        random_drops = []
-        random_flips = []
-
-        random_sufficiencies = []
-        random_sufficiency_flips = []
-
-        for _ in range(random_repeats):
-
-            # Random edges (excluding self-loops)
-            random_edge_indices = rng.choice(
-                eligible.numpy(),
-                size=k_edges,
-                replace=False
-            )
-
-            # Random features
-            random_feature_indices = rng.choice(
-                F,
-                size=k_features,
-                replace=False
-            )
-
-            # Random masks
-            random_edges = torch.zeros(
-                E, dtype=torch.bool
-            )
-            random_edges[random_edge_indices] = True
-
-            random_features = torch.zeros(
-                F, dtype=torch.bool
-            )
-            random_features[random_feature_indices] = True
-
-            # Comprehensiveness
-            random_removed_conf, random_removed_flip = evaluate(
-                ~random_edges,
-                ~random_features
-            )
-
-            random_drops.append(
-                original_confidence - random_removed_conf
-            )
-            random_flips.append(random_removed_flip)
-
-            # Sufficiency
-            random_only_conf, random_only_flip = evaluate(
-                random_edges,
-                random_features
-            )
-
-            random_sufficiencies.append(
-                original_confidence - random_only_conf
-            )
-
-            random_sufficiency_flips.append(
-                random_only_flip
-            )
-
-        # ----------------------------------------
-        # STEP 8: Store results
-        # ----------------------------------------
-
-        rows.append({
-            "row": result["row"],
-
-            "class": (
-                "Human" if result["label"] == 0
-                else "Machine"
-            ),
-
-            "original_confidence": original_confidence,
-
-            "num_edges_selected": k_edges,
-            "num_features_selected": k_features,
-
-            # Edge-only
-            "sufficiency_edge": (
-                original_confidence - edge_only_conf
-            ),
-            "comprehensiveness_edge": (
-                original_confidence - edge_removed_conf
-            ),
-
-            # Feature-only
-            "sufficiency_feature": (
-                original_confidence - feature_only_conf
-            ),
-            "comprehensiveness_feature": (
-                original_confidence - feature_removed_conf
-            ),
-
-            # Edge + Feature
-            "sufficiency": (
-                original_confidence - both_only_conf
-            ),
-            "comprehensiveness": (
-                original_confidence - both_removed_conf
-            ),
-
-            # Random Edge + Feature
-            "sufficiency_random": np.mean(
-                random_sufficiencies
-            ),
-            "comprehensiveness_random": np.mean(
-                random_drops
-            ),
-
-            # Prediction flips: Edge
-            "flip_only_edges": edge_only_flip,
-            "flip_edges_removed": edge_removed_flip,
-
-            # Prediction flips: Features
-            "flip_only_features": feature_only_flip,
-            "flip_features_removed": feature_removed_flip,
-
-            # Prediction flips: Both
-            "flip_only_top": both_only_flip,
-            "flip_top_removed": both_removed_flip,
-
-            # Random flips
-            "flip_only_random": np.mean(
-                random_sufficiency_flips
-            ),
-            "flip_random_removed": np.mean(
-                random_flips
-            )
-        })
-
-    # ----------------------------------------
-    # STEP 9: Save results
-    # ----------------------------------------
-
-    edge_name = (
-        f"k{edge_top_k}"
-        if edge_top_k is not None
-        else f"{edge_fraction:.2f}".replace(".", "")
-    )
-
-    feature_name = (
-        f"k{feature_top_k}"
-        if feature_top_k is not None
-        else f"{feature_fraction:.2f}".replace(".", "")
-    )
-
-    df_faithfulness = pd.DataFrame(rows)
-
-    faithfulness_path = os.path.join(
-        folder,
-        f"{path_base}ff{edge_name}{feature_name}{random_repeats}.csv"
-    )
-
-    df_faithfulness.to_csv(
-        faithfulness_path,
-        index=False
-    )
-
-    print(f"Graphs evaluated: {len(df_faithfulness)}")
-    print(f"Results saved to: {faithfulness_path}")
-
-    return df_faithfulness
-
-def plot_edge_faithfulness(df):
+def plot_edge_faithfulness(df, folder):
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
@@ -700,8 +461,16 @@ def plot_edge_faithfulness(df):
     axes[1].set_ylabel("Confidence drop")
 
     plt.tight_layout()
-    plt.show()
 
+    figures_folder = os.path.join(folder, "figures")
+    os.makedirs(figures_folder, exist_ok = True)
+
+    fig.savefig(os.path.join(figures_folder, "edge_faith.png"), dpi=300, bbox_inches="tight")
+
+    plt.show()
+    plt.close(fig)
+
+    
 def _reduce(mask, n_items):
     if mask is None:
         return None
