@@ -8,7 +8,7 @@ from exp.exp_main import Exp_Main
 from exp.tools import set_seed
 from exp.exp_explainer import GraphExplainer
 from main import get_parser, make_setting, str2bool
-from vis.utils_explainer import explanation_to_matrices, evaluate_edge_faithfulness, analyze_important_nodes, plot_edge_faithfulness
+from vis.utils_explainer import explanation_to_matrices, evaluate_edge_faithfulness, analyze_important_nodes, plot_edge_faithfulness, predict_with_edges
 from vis.utils_motifs import analyze_motifs
 
 def get_explain_parser():
@@ -16,7 +16,7 @@ def get_explain_parser():
     p = get_parser()
     g = p.add_argument_group("explainer")
     g.add_argument("--explain_epochs", type=int, default=200)
-    g.add_argument("--node_mask_type", type=str, default="attributes", choices=["none", "object", "attributes", "common_attributes"])
+    g.add_argument("--node_mask_type", type=str, default="none", choices=["none", "object"])
     g.add_argument("--edge_mask_type", type=str, default="object", choices=["none", "object"])
     g.add_argument("--top_fraction_edges", type=float, default=0.05)
     g.add_argument("--top_k", type=int, default=None)
@@ -28,6 +28,8 @@ def explain_setting(args, setting):
     # rebuild the trained model and load the checkpoint (weights)
     exp = Exp_Main(args)
     ckpt = os.path.join(args.checkpoints, setting, "checkpoint.pth")
+    print(f"Checkpoints path {ckpt}")
+
     exp.model.load_state_dict(torch.load(ckpt, map_location=exp.device))
 
     # create the explainer
@@ -40,11 +42,16 @@ def explain_setting(args, setting):
 
     # get the predictions that we already have
     folder = os.path.join(args.results_dir, setting)
+    print(f"Predictions path {folder}")
     preds = pd.read_csv(os.path.join(folder, "predictions.csv")).set_index("row")
 
     # get the test data
     test_data, _ = exp._get_data("test")
     n = len(test_data)
+
+    # check if the test data for sure has the same indices as predictions (so test data for model 'exp')
+    ids = {int(d.idx) for d in test_data}
+    assert ids == set(preds.index)
 
     # for each test excerpt, get the explanation and save it to a list of dicts
     results = []
@@ -102,10 +109,7 @@ def load_or_explain(args, setting):
             edge_base = "ob"
 
     path_base = f"{node_base}{edge_base}"
-    path = os.path.join(
-        folder, 
-        f"{base}.pth"
-    )
+    path = os.path.join(folder, f"{base}.pth")
 
     if os.path.exists(path):
         print(f"Loading existing explanations from {path}")
@@ -124,8 +128,6 @@ def load_or_explain(args, setting):
 def main():
     args = get_explain_parser().parse_args()
     base_seed = args.seed
-    fwords_df = pd.read_csv("data/function_words.txt")
-    fwords = fwords_df["word"].tolist()
 
     for ii in range(args.itr):
         args.seed = base_seed + ii
@@ -140,9 +142,10 @@ def main():
         exp.model.load_state_dict(torch.load(ckpt, map_location=exp.device))
         exp.model.eval()
 
+        #motif analysis
         if args.edge_mask_type != "none":
             motif_stats = analyze_motifs(results, folder, path_base, fraction=args.top_fraction_edges, top_k=args.top_k, min_present=10)
-            
+
             df_faithfulness = evaluate_edge_faithfulness(
                                     results=results,
                                     folder=folder,
@@ -155,13 +158,16 @@ def main():
                                     random_repeats=100
                                 )
             plot_edge_faithfulness(df_faithfulness, folder)
-                
+
+        # this will not really be used as we focus on edge analysis
         if args.node_mask_type != "none":
+            fwords_df = pd.read_csv("data/function_words.txt")
+            fwords = fwords_df["word"].tolist()
             analyze_important_nodes(results, folder, path_base, fwords, fraction=args.top_fraction_nodes, top_k=args.top_k_nodes)
 
 
         # fig, ax, pos = plot_comparison(results[0], threshold=0.8)
-
+        #
         # plot_comparison(results[1], threshold=0.8, pos=pos)
 
 if __name__ == "__main__":

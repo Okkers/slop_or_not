@@ -266,6 +266,7 @@ def analyze_motifs(results, folder, path_base, fraction=0.05, top_k = None, min_
     * Aggregates of motifs found in human and machine graph.
     * Aggregates including statistical significance information.
     """
+
     os.makedirs(folder, exist_ok=True)
 
     fraction_name = (
