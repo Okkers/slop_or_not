@@ -282,7 +282,7 @@ def predict_with_edges(model, result, keep_edges, device):
     return probabilities[0].cpu()
 
 def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, fraction=0.05, top_k=None, random_repeats=100):
-    os.makedirs(folder, exist_ok=True)
+    # os.makedirs(folder, exist_ok=True)
     rng = np.random.default_rng(seed)
 
     rows = []
@@ -387,19 +387,19 @@ def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, 
             "flip_only_random": np.mean(random_sufficiency_flips)
         })
 
-    fraction_name = (
-            f"k{top_k}" if top_k is not None
-            else f"{fraction:.2f}".replace(".","")
-        )
+    # fraction_name = (
+    #         f"k{top_k}" if top_k is not None
+    #         else f"{fraction:.2f}".replace(".","")
+    #     )
     df_faithfulness = pd.DataFrame(rows)
-    faithfulness_path = os.path.join(
-        folder,
-        f"{path_base}edgeff{fraction_name}_{random_repeats}.csv"
-    )
-    df_faithfulness.to_csv(
-        faithfulness_path,
-        index=False
-    )
+    # faithfulness_path = os.path.join(
+    #     folder,
+    #     f"{path_base}edgeff{fraction_name}_{random_repeats}.csv"
+    # )
+    # df_faithfulness.to_csv(
+    #     faithfulness_path,
+    #     index=False
+    # )
     return df_faithfulness
 
 def plot_edge_faithfulness(df, folder):
