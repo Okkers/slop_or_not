@@ -31,11 +31,12 @@ def explain_setting(args, setting):
     print(f"Checkpoints path {ckpt}")
 
     exp.model.load_state_dict(torch.load(ckpt, map_location=exp.device))
+    exp.model.eval()
 
-    # create the explainer
+    # create the explainer (edge masks only, node masks are never used)
     explainer = GraphExplainer(
         model=exp.model,
-        node_mask_type=None if args.node_mask_type == "none" else args.node_mask_type,
+        node_mask_type=None,
         edge_mask_type=None if args.edge_mask_type == "none" else args.edge_mask_type,
         epochs=args.explain_epochs
     )
@@ -53,14 +54,30 @@ def explain_setting(args, setting):
     ids = {int(d.idx) for d in test_data}
     assert ids == set(preds.index)
 
-    # for each test excerpt, get the explanation and save it to a list of dicts
+    # for each test excerpt, get the explanation (averaged over several explainer seeds)
+    # and save it to a list of dicts
     results = []
     for i in range(n):
         data = test_data[i].to(exp.device)
-        explanation = explainer.explain(data)
-        edge_mask = getattr(explanation, "edge_mask", None)
-        node_mask = getattr(explanation, "node_mask", None)
         row = int(data.idx)
+
+        # run the explainer several times, each with its own reproducible seed
+        runs = []
+        for r in range(10):
+            print(f"Iteration {r}")
+            set_seed(args.seed * 1_000_003 + row * 100 + r)
+            explanation = explainer.explain(data)
+            em = getattr(explanation, "edge_mask", None)
+            if em is not None:
+                runs.append(em.detach().cpu())
+
+        if runs:
+            stack = torch.stack(runs)  # (runs, E)
+            edge_mask = stack.mean(0)
+            edge_mask_std = stack.std(0) if len(runs) > 1 else torch.zeros_like(edge_mask)
+        else:
+            stack = edge_mask = edge_mask_std = None
+
         results.append({
             "row": row,
             "label": int(data.y),
@@ -69,11 +86,16 @@ def explain_setting(args, setting):
             "x": data.x.cpu(),
             "edge_index": data.edge_index.cpu(),
             "edge_weight": data.edge_weight.cpu(),
-            "edge_mask": None if edge_mask is None else edge_mask.cpu(),
-            "node_mask": None if node_mask is None else node_mask.cpu()
+            "edge_mask": edge_mask,           # mean over runs, used by all downstream code
+            "edge_mask_std": edge_mask_std,   # run-to-run spread per edge
+            "edge_mask_runs": stack,          # (runs, E), for stability analysis
+            "node_mask": None                 # kept so code reading this key still works
         })
 
         # explanation.visualize_feature_importance(top_k=10)
+
+    # put the global RNG back into the known state used by the rest of the pipeline
+    set_seed(args.seed)
 
     # save raw explanations
     path = os.path.join(folder, f"explanations_{args.node_mask_type}_{args.edge_mask_type}.pth")
@@ -146,18 +168,18 @@ def main():
         if args.edge_mask_type != "none":
             motif_stats = analyze_motifs(results, folder, path_base, fraction=args.top_fraction_edges, top_k=args.top_k, min_present=10)
 
-            df_faithfulness = evaluate_edge_faithfulness(
-                                    results=results,
-                                    folder=folder,
-                                    path_base=path_base,
-                                    model=exp.model,
-                                    device=exp.device,
-                                    seed=args.seed,
-                                    fraction=args.top_fraction_edges,
-                                    top_k=args.top_k,
-                                    random_repeats=100
-                                )
-            plot_edge_faithfulness(df_faithfulness, folder)
+        #     df_faithfulness = evaluate_edge_faithfulness(
+        #                             results=results,
+        #                             folder=folder,
+        #                             path_base=path_base,
+        #                             model=exp.model,
+        #                             device=exp.device,
+        #                             seed=args.seed,
+        #                             fraction=args.top_fraction_edges,
+        #                             top_k=args.top_k,
+        #                             random_repeats=100
+        #                         )
+        #     plot_edge_faithfulness(df_faithfulness, folder)
 
         # this will not really be used as we focus on edge analysis
         if args.node_mask_type != "none":

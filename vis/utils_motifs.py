@@ -17,7 +17,7 @@ def detect_two_edge_motifs(edge_index, max_motifs=200_000):
     edges = {
         (int(u), int(v))
         for u, v in edge_index.detach().cpu().T.tolist()
-        if u != v
+        # if u != v
     }
 
     incident = defaultdict(set)
@@ -50,7 +50,7 @@ def aggregate_motifs(results, selected_results):
         original_edges = {
             (int(u), int(v))
             for u, v in original["edge_index"].T.tolist()
-            if u != v
+            # if u != v
         }
 
         motifs = detect_two_edge_motifs(selected["edge_index"])
@@ -140,13 +140,13 @@ def test_motif_differences(motif_df, results, selected_results,
         original_edges = {
             (int(u), int(v))
             for u, v in original["edge_index"].T.tolist()
-            if u != v
+            # if u != v
         }
 
         selected_edges = {
             (int(u), int(v))
             for u, v in selected["edge_index"].T.tolist()
-            if u != v
+            # if u != v
         }
 
         if not selected_edges.issubset(original_edges):

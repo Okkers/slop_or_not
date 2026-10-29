@@ -226,9 +226,9 @@ def select_top_edges(result, fraction=0.05, top_k=None):
     if edge_mask is None:
         raise ValueError("Explanation has no edge mask")
 
-    valid = edge_index[0] != edge_index[1]
-    edge_index = edge_index[:, valid]
-    edge_mask = edge_mask[valid]
+    # valid = edge_index[0] != edge_index[1]
+    # edge_index = edge_index[:, valid]
+    # edge_mask = edge_mask[valid]
 
     total_edges = edge_index.shape[1]
 
@@ -298,7 +298,8 @@ def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, 
             raise ValueError("Explanation has no edge mask")
 
         E = edge_index.shape[1]
-        eligible = torch.where(edge_index[0] != edge_index[1])[0]
+        # eligible = torch.where(edge_index[0] != edge_index[1])[0]
+        eligible = torch.arange(E, device=edge_index.device)
 
         if top_k is not None:
             k = min(top_k, len(eligible))
@@ -344,11 +345,16 @@ def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, 
         random_sufficiency_flips = []
 
         for _ in range(random_repeats):
+            # random_indices = rng.choice(
+            #     eligible.numpy(),
+            #     size=k,
+            #     replace=False
+            # )
             random_indices = rng.choice(
-                eligible.numpy(),
-                size=k,
-                replace=False
-            )
+                    E,
+                    size=k,
+                    replace=False
+                )
 
             ## comprehensiveness
             keep_random = torch.ones(E, dtype=torch.bool)
