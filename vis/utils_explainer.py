@@ -8,6 +8,8 @@ import math
 import pandas as pd
 import os
 import seaborn as sns
+from collections import defaultdict
+# from utils_motifs import detect_two_edge_motifs
 
 EDGE_GREY = "#b0b0b0"
 NODE_GREY = "#c4c4c4"
@@ -281,132 +283,144 @@ def predict_with_edges(model, result, keep_edges, device):
 
     return probabilities[0].cpu()
 
-def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, fraction=0.05, top_k=None, random_repeats=100):
-    # os.makedirs(folder, exist_ok=True)
+def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed,
+                               fraction=0.4, top_k=None, random_repeats=20):
+    """
+    One row per (graph, 2-edge motif). Each motif is perturbed on its own:
+      - comprehensiveness: confidence drop when ONLY the motif's two edges are removed
+      - sufficiency: confidence drop when ONLY the motif's two edges are kept
+    Motifs come from detect_two_edge_motifs on the explainer's top edges of that graph.
+    Controls: two random edges, and two random edges sharing a node.
+    """
+    # local import: utils_motifs imports select_top_edges from this module (circular otherwise)
+    from vis.utils_motifs import detect_two_edge_motifs
+
+    print(f"Evaluating edge faithfulness for {path_base}")
+
     rng = np.random.default_rng(seed)
-
     rows = []
-
+    analyzed=0
     for result in results:
+        print(f"Test sample {analyzed}")
         if result["label"] != result["pred"]:
             continue
 
         edge_index = result["edge_index"]
         edge_mask = result["edge_mask"]
-
         if edge_mask is None:
             raise ValueError("Explanation has no edge mask")
 
         E = edge_index.shape[1]
-        # eligible = torch.where(edge_index[0] != edge_index[1])[0]
-        eligible = torch.arange(E, device=edge_index.device)
-
-        if top_k is not None:
-            k = min(top_k, len(eligible))
-        else:
-            k = math.ceil(fraction * len(eligible))
-
-        if k == 0:
+        if E < 2:
             continue
 
-        # Original predictions
-        keep_all = torch.ones(E, dtype=torch.bool)
-        prob_original = predict_with_edges(model, result, keep_all, device)
-        predicted_class_original = int(prob_original.argmax())
-        if predicted_class_original != result["pred"]:
+        # top edges and the 2-edge motifs inside them
+        selected = select_top_edges(result, fraction=fraction, top_k=top_k)
+        if selected["num_edges_selected"] < 2:
+            continue
+        motifs = sorted(detect_two_edge_motifs(selected["edge_index"]))
+        if not motifs:
+            continue
+
+        # directed edge (u, v) -> indices in the ORIGINAL edge_index (list guards against duplicates)
+        pairs = [tuple(p) for p in edge_index.T.tolist()]
+        edge_idx = defaultdict(list)
+        incident = defaultdict(set)
+        for i, (u, v) in enumerate(pairs):
+            edge_idx[(u, v)].append(i)
+            incident[u].add(i)
+            incident[v].add(i)
+
+        # original prediction
+        prob_original = predict_with_edges(model, result, torch.ones(E, dtype=torch.bool), device)
+        c = int(prob_original.argmax())
+        if c != result["pred"]:
             raise ValueError(f"Prediction mismatch for graph {result['row']}")
-        original_confidence = prob_original[predicted_class_original].item()
+        base = prob_original[c].item()
 
-        # Remove k GNNExplainer edges
+        def evaluate(idx, keep_only):
+            """(confidence drop, flipped) when removing idx, or keeping only idx."""
+            keep = torch.zeros(E, dtype=torch.bool) if keep_only else torch.ones(E, dtype=torch.bool)
+            keep[list(idx)] = keep_only
+            prob = predict_with_edges(model, result, keep, device)
+            return base - prob[c].item(), int(prob.argmax().item() != c)
 
-        ## sufficiency
-        sorted_indices = torch.argsort(edge_mask[eligible], descending=True)
-        top_indices = eligible[sorted_indices[:k]]
-        keep_only_top = torch.zeros(E, dtype=torch.bool)
-        keep_only_top[top_indices] = True
-        prob_only_top = predict_with_edges(model, result, keep_only_top, device)
-        only_top_confidence = prob_only_top[predicted_class_original].item()
-        sufficiency = original_confidence - only_top_confidence
-        flipped_only_top = int(prob_only_top.argmax().item() != predicted_class_original)
+        def random_pair():
+            return rng.choice(E, size=2, replace=False).tolist()
 
-        ## comprehensiveness
-        keep_top = torch.ones(E, dtype=torch.bool)
-        keep_top[top_indices] = False
-        prob_top_removed = predict_with_edges(model, result, keep_top, device)
-        top_removed_confidence = prob_top_removed[predicted_class_original].item()
-        drop_original_top = original_confidence - top_removed_confidence
-        flipped_original_top = int(prob_top_removed.argmax().item() != predicted_class_original)
+        def random_adjacent_pair():
+            for _ in range(50):
+                i = int(rng.integers(E))
+                u, v = pairs[i]
+                cand = [j for j in (incident[u] | incident[v]) if j != i]
+                if cand:
+                    return [i, int(rng.choice(cand))]
+            return random_pair()
 
-        # Randomly remove k edges
-        random_drops = []
-        random_flips = []
+        for motif in motifs:
+            # print(f"Motif {motif}")
+            idx = [i for e in motif for i in edge_idx[e]]
 
-        random_sufficiencies = []
-        random_sufficiency_flips = []
+            # the motif alone, one at a time
+            comp, flip_comp = evaluate(idx, keep_only=False)
+            suff, flip_suff = evaluate(idx, keep_only=True)
 
-        for _ in range(random_repeats):
-            # random_indices = rng.choice(
-            #     eligible.numpy(),
-            #     size=k,
-            #     replace=False
-            # )
-            random_indices = rng.choice(
-                    E,
-                    size=k,
-                    replace=False
-                )
+            # controls
+            rp_comp, rp_suff, ra_comp, ra_suff = [], [], [], []
+            rp_fc, rp_fs, ra_fc, ra_fs = [], [], [], []
+            for _ in range(random_repeats):
+                a = random_pair()
+                d, f = evaluate(a, False); rp_comp.append(d); rp_fc.append(f)
+                d, f = evaluate(a, True);  rp_suff.append(d); rp_fs.append(f)
 
-            ## comprehensiveness
-            keep_random = torch.ones(E, dtype=torch.bool)
-            keep_random[random_indices] = False
-            prob_random = predict_with_edges(model, result, keep_random, device)
-            random_confidence = prob_random[predicted_class_original].item()
-            random_drops.append(original_confidence-random_confidence)
-            random_flips.append(int(prob_random.argmax().item() != predicted_class_original))
+                b = random_adjacent_pair()
+                d, f = evaluate(b, False); ra_comp.append(d); ra_fc.append(f)
+                d, f = evaluate(b, True);  ra_suff.append(d); ra_fs.append(f)
 
-            ## sufficiency
-            keep_only_random = torch.zeros(E, dtype=torch.bool)
-            keep_only_random[random_indices] = True
-            prob_only_random = predict_with_edges(model, result, keep_only_random, device)
-            random_only_confidence = prob_only_random[predicted_class_original].item()
-            random_sufficiencies.append(original_confidence - random_only_confidence)
-            random_sufficiency_flips.append(int(prob_only_random.argmax().item() != predicted_class_original))
+            rows.append({
+                "row": result["row"],
+                "class": "Human" if result["label"] == 0 else "Machine",
+                "motif": motif,
+                "has_self_loop": int(any(u == v for u, v in motif)),
+                "mean_edge_mask": float(edge_mask[idx].mean()),
+                "original_confidence": base,
 
-        rows.append({
-            "row": result["row"],
-            "class": "Human" if result["label"] == 0 else "Machine",
-            "original_confidence": original_confidence,
+                # motif only
+                "comprehensiveness": comp,
+                "sufficiency": suff,
+                "flip_removed": flip_comp,
+                "flip_only": flip_suff,
 
-            # Comprehensiveness
-            "comprehensiveness": drop_original_top,
-            "comprehensiveness_random": np.mean(random_drops),
+                # control: two random edges
+                "comprehensiveness_random_pair": np.mean(rp_comp),
+                "sufficiency_random_pair": np.mean(rp_suff),
+                "flip_removed_random_pair": np.mean(rp_fc),
+                "flip_only_random_pair": np.mean(rp_fs),
 
-            # Sufficiency 
-            "sufficiency": sufficiency,
-            "sufficiency_random": np.mean(random_sufficiencies),
+                # control: two random edges sharing a node (the fair control for a motif)
+                "comprehensiveness_random_adjacent": np.mean(ra_comp),
+                "sufficiency_random_adjacent": np.mean(ra_suff),
+                "flip_removed_random_adjacent": np.mean(ra_fc),
+                "flip_only_random_adjacent": np.mean(ra_fs),
+            })
+        analyzed=analyzed+1
 
-            # prediction flips
-            "flip_top_removed": flipped_original_top,
-            "flip_random_removed": np.mean(random_flips),
+    df = pd.DataFrame(rows)
 
-            "flip_only_top": flipped_only_top,
-            "flip_only_random": np.mean(random_sufficiency_flips)
-        })
+    os.makedirs(folder, exist_ok=True)
+    fraction_name = (
+        f"k{top_k}" if top_k is not None
+        else f"{fraction:.2f}".replace(".", "")
+    )
+    path = os.path.join(
+        folder,
+        f"{path_base}_motfaith{fraction_name}_{random_repeats}.csv"
+    )
+    df.to_csv(path, index=False)
+    print(f"Saved motif faithfulness to {path}")
 
-    # fraction_name = (
-    #         f"k{top_k}" if top_k is not None
-    #         else f"{fraction:.2f}".replace(".","")
-    #     )
-    df_faithfulness = pd.DataFrame(rows)
-    # faithfulness_path = os.path.join(
-    #     folder,
-    #     f"{path_base}edgeff{fraction_name}_{random_repeats}.csv"
-    # )
-    # df_faithfulness.to_csv(
-    #     faithfulness_path,
-    #     index=False
-    # )
-    return df_faithfulness
+    return df
+
 
 def plot_edge_faithfulness(df, folder):
 

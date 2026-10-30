@@ -18,9 +18,9 @@ def get_explain_parser():
     g.add_argument("--explain_epochs", type=int, default=200)
     g.add_argument("--node_mask_type", type=str, default="none", choices=["none", "object"])
     g.add_argument("--edge_mask_type", type=str, default="object", choices=["none", "object"])
-    g.add_argument("--top_fraction_edges", type=float, default=0.05)
+    g.add_argument("--top_fraction_edges", type=float, default=0.4)
     g.add_argument("--top_k", type=int, default=None)
-    g.add_argument("--top_fraction_nodes", type=float, default=0.05)
+    g.add_argument("--top_fraction_nodes", type=float, default=0)
     g.add_argument("--top_k_nodes", type=int, default=None)
     return p
 
@@ -168,17 +168,19 @@ def main():
         if args.edge_mask_type != "none":
             motif_stats = analyze_motifs(results, folder, path_base, fraction=args.top_fraction_edges, top_k=args.top_k, min_present=10)
 
-        #     df_faithfulness = evaluate_edge_faithfulness(
-        #                             results=results,
-        #                             folder=folder,
-        #                             path_base=path_base,
-        #                             model=exp.model,
-        #                             device=exp.device,
-        #                             seed=args.seed,
-        #                             fraction=args.top_fraction_edges,
-        #                             top_k=args.top_k,
-        #                             random_repeats=100
-        #                         )
+            # df_faithfulness = evaluate_edge_faithfulness(
+            #                         results=results,
+            #                         folder=folder,
+            #                         path_base=path_base,
+            #                         model=exp.model,
+            #                         device=exp.device,
+            #                         seed=args.seed,
+            #                         fraction=args.top_fraction_edges,
+            #                         top_k=args.top_k,
+            #                         random_repeats=50)
+
+
+
         #     plot_edge_faithfulness(df_faithfulness, folder)
 
         # this will not really be used as we focus on edge analysis

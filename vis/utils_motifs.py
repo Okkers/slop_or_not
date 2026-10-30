@@ -247,15 +247,10 @@ def test_motif_differences(motif_df, results, selected_results,
     )
 
 def motif_to_fwords(motif, function_words):
-    """
-    Convert motifs to function words.
-    """
-    if isinstance(motif, str):
-        motif = ast.literal_eval(motif)
 
-    return " ".join(
-        f"({function_words[u]}, {function_words[v]})"
-        for u, v in motif
+    return (
+        str(function_words[motif[0]]),
+        str(function_words[motif[1]])
     )
 
 def analyze_motifs(results, folder, path_base, fraction=0.05, top_k = None, min_present=10):
