@@ -1,0 +1,947 @@
+[
+  {
+    "row": 1,
+    "label": "human",
+    "num_edges": 353,
+    "top_edges": [
+      {
+        "from": "w13",
+        "to": "w79",
+        "mask": 0.1484
+      },
+      {
+        "from": "w98",
+        "to": "w8",
+        "mask": 0.1403
+      },
+      {
+        "from": "w79",
+        "to": "w18",
+        "mask": 0.1399
+      },
+      {
+        "from": "w113",
+        "to": "w80",
+        "mask": 0.1397
+      },
+      {
+        "from": "w112",
+        "to": "w16",
+        "mask": 0.1389
+      },
+      {
+        "from": "w111",
+        "to": "w65",
+        "mask": 0.1383
+      },
+      {
+        "from": "w92",
+        "to": "w112",
+        "mask": 0.138
+      },
+      {
+        "from": "w83",
+        "to": "w59",
+        "mask": 0.1366
+      },
+      {
+        "from": "w102",
+        "to": "w10",
+        "mask": 0.1366
+      },
+      {
+        "from": "w80",
+        "to": "w112",
+        "mask": 0.1363
+      },
+      {
+        "from": "w7",
+        "to": "w20",
+        "mask": 0.1361
+      },
+      {
+        "from": "w87",
+        "to": "w74",
+        "mask": 0.136
+      },
+      {
+        "from": "w112",
+        "to": "w18",
+        "mask": 0.136
+      },
+      {
+        "from": "w0",
+        "to": "w16",
+        "mask": 0.1359
+      },
+      {
+        "from": "w28",
+        "to": "w62",
+        "mask": 0.1356
+      },
+      {
+        "from": "w5",
+        "to": "w24",
+        "mask": 0.1356
+      },
+      {
+        "from": "w45",
+        "to": "w4",
+        "mask": 0.1353
+      },
+      {
+        "from": "w92",
+        "to": "w83",
+        "mask": 0.1351
+      },
+      {
+        "from": "w15",
+        "to": "w0",
+        "mask": 0.135
+      },
+      {
+        "from": "w4",
+        "to": "w86",
+        "mask": 0.1349
+      }
+    ],
+    "top_words": [
+      {
+        "word": "w37",
+        "importance": 0.9724
+      },
+      {
+        "word": "w111",
+        "importance": 0.575
+      },
+      {
+        "word": "w80",
+        "importance": 0.5386
+      },
+      {
+        "word": "w0",
+        "importance": 0.5351
+      },
+      {
+        "word": "w24",
+        "importance": 0.5204
+      },
+      {
+        "word": "w61",
+        "importance": 0.5197
+      },
+      {
+        "word": "w28",
+        "importance": 0.515
+      },
+      {
+        "word": "w112",
+        "importance": 0.5063
+      },
+      {
+        "word": "w83",
+        "importance": 0.5003
+      },
+      {
+        "word": "w113",
+        "importance": 0.5002
+      },
+      {
+        "word": "w10",
+        "importance": 0.4963
+      },
+      {
+        "word": "w5",
+        "importance": 0.4961
+      },
+      {
+        "word": "w88",
+        "importance": 0.4856
+      },
+      {
+        "word": "w115",
+        "importance": 0.4813
+      },
+      {
+        "word": "w7",
+        "importance": 0.4732
+      },
+      {
+        "word": "w39",
+        "importance": 0.4727
+      },
+      {
+        "word": "w79",
+        "importance": 0.4708
+      },
+      {
+        "word": "w75",
+        "importance": 0.4659
+      },
+      {
+        "word": "w13",
+        "importance": 0.464
+      },
+      {
+        "word": "w92",
+        "importance": 0.4613
+      }
+    ]
+  },
+  {
+    "row": 6,
+    "label": "human",
+    "num_edges": 177,
+    "top_edges": [
+      {
+        "from": "w108",
+        "to": "w20",
+        "mask": 0.1211
+      },
+      {
+        "from": "w0",
+        "to": "w5",
+        "mask": 0.1209
+      },
+      {
+        "from": "w5",
+        "to": "w65",
+        "mask": 0.1203
+      },
+      {
+        "from": "w37",
+        "to": "w98",
+        "mask": 0.1198
+      },
+      {
+        "from": "w102",
+        "to": "w92",
+        "mask": 0.1183
+      },
+      {
+        "from": "w102",
+        "to": "w81",
+        "mask": 0.118
+      },
+      {
+        "from": "w108",
+        "to": "w62",
+        "mask": 0.117
+      },
+      {
+        "from": "w59",
+        "to": "w80",
+        "mask": 0.1169
+      },
+      {
+        "from": "w81",
+        "to": "w59",
+        "mask": 0.1168
+      },
+      {
+        "from": "w59",
+        "to": "w62",
+        "mask": 0.1165
+      },
+      {
+        "from": "w80",
+        "to": "w65",
+        "mask": 0.1163
+      },
+      {
+        "from": "w39",
+        "to": "w0",
+        "mask": 0.1162
+      },
+      {
+        "from": "w38",
+        "to": "w9",
+        "mask": 0.1159
+      },
+      {
+        "from": "w80",
+        "to": "w92",
+        "mask": 0.1154
+      },
+      {
+        "from": "w62",
+        "to": "w81",
+        "mask": 0.115
+      },
+      {
+        "from": "w61",
+        "to": "w0",
+        "mask": 0.1148
+      },
+      {
+        "from": "w39",
+        "to": "w64",
+        "mask": 0.1148
+      },
+      {
+        "from": "w83",
+        "to": "w92",
+        "mask": 0.1147
+      },
+      {
+        "from": "w65",
+        "to": "w83",
+        "mask": 0.1146
+      },
+      {
+        "from": "w112",
+        "to": "w0",
+        "mask": 0.1144
+      }
+    ],
+    "top_words": [
+      {
+        "word": "w59",
+        "importance": 0.5072
+      },
+      {
+        "word": "w37",
+        "importance": 0.5045
+      },
+      {
+        "word": "w100",
+        "importance": 0.5036
+      },
+      {
+        "word": "w42",
+        "importance": 0.503
+      },
+      {
+        "word": "w20",
+        "importance": 0.5024
+      },
+      {
+        "word": "w92",
+        "importance": 0.4966
+      },
+      {
+        "word": "w10",
+        "importance": 0.4921
+      },
+      {
+        "word": "w98",
+        "importance": 0.4918
+      },
+      {
+        "word": "w81",
+        "importance": 0.4912
+      },
+      {
+        "word": "w112",
+        "importance": 0.4908
+      },
+      {
+        "word": "w83",
+        "importance": 0.4892
+      },
+      {
+        "word": "w111",
+        "importance": 0.4873
+      },
+      {
+        "word": "w108",
+        "importance": 0.4853
+      },
+      {
+        "word": "w38",
+        "importance": 0.4843
+      },
+      {
+        "word": "w62",
+        "importance": 0.4842
+      },
+      {
+        "word": "w0",
+        "importance": 0.482
+      },
+      {
+        "word": "w61",
+        "importance": 0.4809
+      },
+      {
+        "word": "w9",
+        "importance": 0.4806
+      },
+      {
+        "word": "w87",
+        "importance": 0.4774
+      },
+      {
+        "word": "w80",
+        "importance": 0.4765
+      }
+    ]
+  },
+  {
+    "row": 13,
+    "label": "human",
+    "num_edges": 269,
+    "top_edges": [
+      {
+        "from": "w105",
+        "to": "w7",
+        "mask": 0.1338
+      },
+      {
+        "from": "w10",
+        "to": "w112",
+        "mask": 0.1314
+      },
+      {
+        "from": "w112",
+        "to": "w0",
+        "mask": 0.1309
+      },
+      {
+        "from": "w59",
+        "to": "w0",
+        "mask": 0.1299
+      },
+      {
+        "from": "w61",
+        "to": "w27",
+        "mask": 0.1296
+      },
+      {
+        "from": "w21",
+        "to": "w66",
+        "mask": 0.1296
+      },
+      {
+        "from": "w9",
+        "to": "w112",
+        "mask": 0.1288
+      },
+      {
+        "from": "w63",
+        "to": "w111",
+        "mask": 0.1282
+      },
+      {
+        "from": "w7",
+        "to": "w105",
+        "mask": 0.1281
+      },
+      {
+        "from": "w80",
+        "to": "w101",
+        "mask": 0.1281
+      },
+      {
+        "from": "w5",
+        "to": "w92",
+        "mask": 0.128
+      },
+      {
+        "from": "w92",
+        "to": "w62",
+        "mask": 0.1279
+      },
+      {
+        "from": "w41",
+        "to": "w23",
+        "mask": 0.1275
+      },
+      {
+        "from": "w5",
+        "to": "w80",
+        "mask": 0.1268
+      },
+      {
+        "from": "w27",
+        "to": "w92",
+        "mask": 0.1264
+      },
+      {
+        "from": "w112",
+        "to": "w9",
+        "mask": 0.1263
+      },
+      {
+        "from": "w92",
+        "to": "w113",
+        "mask": 0.1261
+      },
+      {
+        "from": "w15",
+        "to": "w66",
+        "mask": 0.1259
+      },
+      {
+        "from": "w67",
+        "to": "w23",
+        "mask": 0.1259
+      },
+      {
+        "from": "w79",
+        "to": "w0",
+        "mask": 0.1256
+      }
+    ],
+    "top_words": [
+      {
+        "word": "w76",
+        "importance": 0.592
+      },
+      {
+        "word": "w113",
+        "importance": 0.529
+      },
+      {
+        "word": "w80",
+        "importance": 0.5257
+      },
+      {
+        "word": "w92",
+        "importance": 0.5194
+      },
+      {
+        "word": "w43",
+        "importance": 0.5097
+      },
+      {
+        "word": "w105",
+        "importance": 0.5015
+      },
+      {
+        "word": "w112",
+        "importance": 0.4973
+      },
+      {
+        "word": "w47",
+        "importance": 0.4969
+      },
+      {
+        "word": "w9",
+        "importance": 0.4948
+      },
+      {
+        "word": "w10",
+        "importance": 0.4887
+      },
+      {
+        "word": "w42",
+        "importance": 0.4877
+      },
+      {
+        "word": "w62",
+        "importance": 0.4854
+      },
+      {
+        "word": "w41",
+        "importance": 0.4828
+      },
+      {
+        "word": "w21",
+        "importance": 0.4791
+      },
+      {
+        "word": "w74",
+        "importance": 0.4785
+      },
+      {
+        "word": "w88",
+        "importance": 0.4667
+      },
+      {
+        "word": "w79",
+        "importance": 0.4662
+      },
+      {
+        "word": "w61",
+        "importance": 0.4653
+      },
+      {
+        "word": "w17",
+        "importance": 0.4626
+      },
+      {
+        "word": "w5",
+        "importance": 0.462
+      }
+    ]
+  },
+  {
+    "row": 24,
+    "label": "machine",
+    "num_edges": 160,
+    "top_edges": [
+      {
+        "from": "w77",
+        "to": "w8",
+        "mask": 0.1158
+      },
+      {
+        "from": "w24",
+        "to": "w79",
+        "mask": 0.1154
+      },
+      {
+        "from": "w65",
+        "to": "w4",
+        "mask": 0.1152
+      },
+      {
+        "from": "w86",
+        "to": "w24",
+        "mask": 0.1147
+      },
+      {
+        "from": "w4",
+        "to": "w20",
+        "mask": 0.114
+      },
+      {
+        "from": "w15",
+        "to": "w37",
+        "mask": 0.1138
+      },
+      {
+        "from": "w61",
+        "to": "w5",
+        "mask": 0.113
+      },
+      {
+        "from": "w105",
+        "to": "w20",
+        "mask": 0.1128
+      },
+      {
+        "from": "w78",
+        "to": "w105",
+        "mask": 0.1125
+      },
+      {
+        "from": "w79",
+        "to": "w24",
+        "mask": 0.1124
+      },
+      {
+        "from": "w80",
+        "to": "w24",
+        "mask": 0.1122
+      },
+      {
+        "from": "w16",
+        "to": "w92",
+        "mask": 0.1118
+      },
+      {
+        "from": "w17",
+        "to": "w62",
+        "mask": 0.1117
+      },
+      {
+        "from": "w92",
+        "to": "w81",
+        "mask": 0.1116
+      },
+      {
+        "from": "w0",
+        "to": "w65",
+        "mask": 0.1114
+      },
+      {
+        "from": "w39",
+        "to": "w24",
+        "mask": 0.1113
+      },
+      {
+        "from": "w37",
+        "to": "w59",
+        "mask": 0.1113
+      },
+      {
+        "from": "w8",
+        "to": "w74",
+        "mask": 0.1111
+      },
+      {
+        "from": "w83",
+        "to": "w81",
+        "mask": 0.111
+      },
+      {
+        "from": "w86",
+        "to": "w78",
+        "mask": 0.1108
+      }
+    ],
+    "top_words": [
+      {
+        "word": "w5",
+        "importance": 0.5388
+      },
+      {
+        "word": "w42",
+        "importance": 0.5335
+      },
+      {
+        "word": "w8",
+        "importance": 0.5117
+      },
+      {
+        "word": "w105",
+        "importance": 0.5094
+      },
+      {
+        "word": "w81",
+        "importance": 0.5061
+      },
+      {
+        "word": "w0",
+        "importance": 0.501
+      },
+      {
+        "word": "w39",
+        "importance": 0.4865
+      },
+      {
+        "word": "w88",
+        "importance": 0.4815
+      },
+      {
+        "word": "w92",
+        "importance": 0.4803
+      },
+      {
+        "word": "w83",
+        "importance": 0.4803
+      },
+      {
+        "word": "w98",
+        "importance": 0.4789
+      },
+      {
+        "word": "w79",
+        "importance": 0.47
+      },
+      {
+        "word": "w37",
+        "importance": 0.4695
+      },
+      {
+        "word": "w87",
+        "importance": 0.4669
+      },
+      {
+        "word": "w80",
+        "importance": 0.4669
+      },
+      {
+        "word": "w24",
+        "importance": 0.4658
+      },
+      {
+        "word": "w48",
+        "importance": 0.4655
+      },
+      {
+        "word": "w41",
+        "importance": 0.4651
+      },
+      {
+        "word": "w77",
+        "importance": 0.4583
+      },
+      {
+        "word": "w86",
+        "importance": 0.454
+      }
+    ]
+  },
+  {
+    "row": 36,
+    "label": "machine",
+    "num_edges": 175,
+    "top_edges": [
+      {
+        "from": "w0",
+        "to": "w51",
+        "mask": 0.1232
+      },
+      {
+        "from": "w17",
+        "to": "w112",
+        "mask": 0.1221
+      },
+      {
+        "from": "w105",
+        "to": "w28",
+        "mask": 0.122
+      },
+      {
+        "from": "w65",
+        "to": "w72",
+        "mask": 0.1215
+      },
+      {
+        "from": "w17",
+        "to": "w0",
+        "mask": 0.1203
+      },
+      {
+        "from": "w80",
+        "to": "w61",
+        "mask": 0.1202
+      },
+      {
+        "from": "w24",
+        "to": "w112",
+        "mask": 0.12
+      },
+      {
+        "from": "w41",
+        "to": "w4",
+        "mask": 0.1196
+      },
+      {
+        "from": "w39",
+        "to": "w0",
+        "mask": 0.1193
+      },
+      {
+        "from": "w65",
+        "to": "w17",
+        "mask": 0.1182
+      },
+      {
+        "from": "w16",
+        "to": "w39",
+        "mask": 0.1182
+      },
+      {
+        "from": "w39",
+        "to": "w36",
+        "mask": 0.1182
+      },
+      {
+        "from": "w39",
+        "to": "w21",
+        "mask": 0.1178
+      },
+      {
+        "from": "w5",
+        "to": "w80",
+        "mask": 0.1177
+      },
+      {
+        "from": "w6",
+        "to": "w88",
+        "mask": 0.1175
+      },
+      {
+        "from": "w55",
+        "to": "w80",
+        "mask": 0.1171
+      },
+      {
+        "from": "w39",
+        "to": "w76",
+        "mask": 0.1165
+      },
+      {
+        "from": "w87",
+        "to": "w21",
+        "mask": 0.1158
+      },
+      {
+        "from": "w112",
+        "to": "w103",
+        "mask": 0.1158
+      },
+      {
+        "from": "w92",
+        "to": "w6",
+        "mask": 0.1155
+      }
+    ],
+    "top_words": [
+      {
+        "word": "w0",
+        "importance": 0.5093
+      },
+      {
+        "word": "w17",
+        "importance": 0.5057
+      },
+      {
+        "word": "w76",
+        "importance": 0.5044
+      },
+      {
+        "word": "w39",
+        "importance": 0.5003
+      },
+      {
+        "word": "w111",
+        "importance": 0.498
+      },
+      {
+        "word": "w8",
+        "importance": 0.4926
+      },
+      {
+        "word": "w77",
+        "importance": 0.4915
+      },
+      {
+        "word": "w81",
+        "importance": 0.4906
+      },
+      {
+        "word": "w92",
+        "importance": 0.4895
+      },
+      {
+        "word": "w112",
+        "importance": 0.4893
+      },
+      {
+        "word": "w51",
+        "importance": 0.489
+      },
+      {
+        "word": "w80",
+        "importance": 0.4865
+      },
+      {
+        "word": "w105",
+        "importance": 0.4824
+      },
+      {
+        "word": "w47",
+        "importance": 0.4823
+      },
+      {
+        "word": "w6",
+        "importance": 0.4801
+      },
+      {
+        "word": "w79",
+        "importance": 0.4763
+      },
+      {
+        "word": "w65",
+        "importance": 0.4726
+      },
+      {
+        "word": "w59",
+        "importance": 0.4703
+      },
+      {
+        "word": "w55",
+        "importance": 0.4674
+      },
+      {
+        "word": "w36",
+        "importance": 0.4666
+      }
+    ]
+  }
+]
