@@ -8,7 +8,7 @@ from exp.exp_main import Exp_Main
 from exp.tools import set_seed
 from exp.exp_explainer import GraphExplainer
 from main import get_parser, make_setting, str2bool
-from vis.utils_explainer import explanation_to_matrices, evaluate_edge_faithfulness, analyze_important_nodes, plot_edge_faithfulness, predict_with_edges
+from vis.utils_explainer import explanation_to_matrices, evaluate_edge_faithfulness_per_motif, analyze_important_nodes, plot_edge_faithfulness, predict_with_edges
 from vis.utils_motifs import analyze_motifs
 
 def get_explain_parser():
@@ -168,16 +168,16 @@ def main():
         if args.edge_mask_type != "none":
             motif_stats = analyze_motifs(results, folder, path_base, fraction=args.top_fraction_edges, top_k=args.top_k, min_present=10)
 
-            # df_faithfulness = evaluate_edge_faithfulness(
-            #                         results=results,
-            #                         folder=folder,
-            #                         path_base=path_base,
-            #                         model=exp.model,
-            #                         device=exp.device,
-            #                         seed=args.seed,
-            #                         fraction=args.top_fraction_edges,
-            #                         top_k=args.top_k,
-            #                         random_repeats=50)
+            df_faithfulness = evaluate_edge_faithfulness_per_motif(
+                                    results=results,
+                                    folder=folder,
+                                    path_base=path_base,
+                                    model=exp.model,
+                                    device=exp.device,
+                                    seed=args.seed,
+                                    fraction=args.top_fraction_edges,
+                                    top_k=args.top_k,
+                                    random_repeats=50)
 
 
 

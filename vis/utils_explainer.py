@@ -283,7 +283,134 @@ def predict_with_edges(model, result, keep_edges, device):
 
     return probabilities[0].cpu()
 
-def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed,
+def evaluate_edge_faithfulness(results, folder, path_base, model, device, seed, fraction=0.05, top_k=None, random_repeats=100):
+    # os.makedirs(folder, exist_ok=True)
+    rng = np.random.default_rng(seed)
+
+    rows = []
+
+    for result in results:
+        if result["label"] != result["pred"]:
+            continue
+
+        edge_index = result["edge_index"]
+        edge_mask = result["edge_mask"]
+
+        if edge_mask is None:
+            raise ValueError("Explanation has no edge mask")
+
+        E = edge_index.shape[1]
+        # eligible = torch.where(edge_index[0] != edge_index[1])[0]
+        eligible = torch.arange(E, device=edge_index.device)
+
+        if top_k is not None:
+            k = min(top_k, len(eligible))
+        else:
+            k = math.ceil(fraction * len(eligible))
+
+        if k == 0:
+            continue
+
+        # Original predictions
+        keep_all = torch.ones(E, dtype=torch.bool)
+        prob_original = predict_with_edges(model, result, keep_all, device)
+        predicted_class_original = int(prob_original.argmax())
+        if predicted_class_original != result["pred"]:
+            raise ValueError(f"Prediction mismatch for graph {result['row']}")
+        original_confidence = prob_original[predicted_class_original].item()
+
+        # Remove k GNNExplainer edges
+
+        ## sufficiency
+        sorted_indices = torch.argsort(edge_mask[eligible], descending=True)
+        top_indices = eligible[sorted_indices[:k]]
+        keep_only_top = torch.zeros(E, dtype=torch.bool)
+        keep_only_top[top_indices] = True
+        prob_only_top = predict_with_edges(model, result, keep_only_top, device)
+        only_top_confidence = prob_only_top[predicted_class_original].item()
+        sufficiency = original_confidence - only_top_confidence
+        flipped_only_top = int(prob_only_top.argmax().item() != predicted_class_original)
+
+        ## comprehensiveness
+        keep_top = torch.ones(E, dtype=torch.bool)
+        keep_top[top_indices] = False
+        prob_top_removed = predict_with_edges(model, result, keep_top, device)
+        top_removed_confidence = prob_top_removed[predicted_class_original].item()
+        drop_original_top = original_confidence - top_removed_confidence
+        flipped_original_top = int(prob_top_removed.argmax().item() != predicted_class_original)
+
+        # Randomly remove k edges
+        random_drops = []
+        random_flips = []
+
+        random_sufficiencies = []
+        random_sufficiency_flips = []
+
+        for _ in range(random_repeats):
+            # random_indices = rng.choice(
+            #     eligible.numpy(),
+            #     size=k,
+            #     replace=False
+            # )
+            random_indices = rng.choice(
+                    E,
+                    size=k,
+                    replace=False
+                )
+
+            ## comprehensiveness
+            keep_random = torch.ones(E, dtype=torch.bool)
+            keep_random[random_indices] = False
+            prob_random = predict_with_edges(model, result, keep_random, device)
+            random_confidence = prob_random[predicted_class_original].item()
+            random_drops.append(original_confidence-random_confidence)
+            random_flips.append(int(prob_random.argmax().item() != predicted_class_original))
+
+            ## sufficiency
+            keep_only_random = torch.zeros(E, dtype=torch.bool)
+            keep_only_random[random_indices] = True
+            prob_only_random = predict_with_edges(model, result, keep_only_random, device)
+            random_only_confidence = prob_only_random[predicted_class_original].item()
+            random_sufficiencies.append(original_confidence - random_only_confidence)
+            random_sufficiency_flips.append(int(prob_only_random.argmax().item() != predicted_class_original))
+
+        rows.append({
+            "row": result["row"],
+            "class": "Human" if result["label"] == 0 else "Machine",
+            "original_confidence": original_confidence,
+
+            # Comprehensiveness
+            "comprehensiveness": drop_original_top,
+            "comprehensiveness_random": np.mean(random_drops),
+
+            # Sufficiency
+            "sufficiency": sufficiency,
+            "sufficiency_random": np.mean(random_sufficiencies),
+
+            # prediction flips
+            "flip_top_removed": flipped_original_top,
+            "flip_random_removed": np.mean(random_flips),
+
+            "flip_only_top": flipped_only_top,
+            "flip_only_random": np.mean(random_sufficiency_flips)
+        })
+
+    # fraction_name = (
+    #         f"k{top_k}" if top_k is not None
+    #         else f"{fraction:.2f}".replace(".","")
+    #     )
+    df_faithfulness = pd.DataFrame(rows)
+    # faithfulness_path = os.path.join(
+    #     folder,
+    #     f"{path_base}edgeff{fraction_name}_{random_repeats}.csv"
+    # )
+    # df_faithfulness.to_csv(
+    #     faithfulness_path,
+    #     index=False
+    # )
+    return df_faithfulness
+
+def evaluate_edge_faithfulness_per_motif(results, folder, path_base, model, device, seed,
                                fraction=0.4, top_k=None, random_repeats=20):
     """
     One row per (graph, 2-edge motif). Each motif is perturbed on its own:

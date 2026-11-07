@@ -165,7 +165,66 @@ runs the SVM baseline, and prints the table. `ITR=3` changes the number of seeds
 Summarise results at any time: `uv run python -m vis.summarize` (one row per model, graph type, dataset
 and split; `--data qwen2.5-1.5b.csv` for one dataset, `--markdown` for a report-ready table).
 
-## 5. Notes
+## 5. Run the GNN explainer
+
+The explainer is run **after training and testing the GNN**. It loads the trained model from its checkpoint and uses GNNExplainer to identify important edges in each test graph. It then analyzes recurring motifs and evaluates their importance, saves the analysis in files which are used for further analysis.
+
+The explainer requires the following files from the training step:
+
+- `checkpoints/<setting>/checkpoint.pth` — trained model weights
+- `results/<setting>/predictions.csv` — saved test-set predictions
+
+Run the explainer with the **same model and graph settings used during training**, so that it can locate the correct checkpoint and reproduce the test graphs.
+
+For our GCN experiment:
+
+```bash
+uv run python explainer.py \
+  --model GCN \
+  --model_id oct2410 \
+  --data_path ../data/train_50w.csv \
+  --function_words ../data/function_words.txt \
+  --graph_type wan \
+  --wan_source text \
+  --window 5 \
+  --node_features emb \
+  --embeddings glove-wiki-gigaword-100 \
+  --edge_weight wan \
+  --learning_rate 0.001 \
+  --num_layers 2 \
+  --hidden_dim 64 \
+  --readout sum \
+  --seed 2029 \
+  --itr 1 \
+  --node_mask_type none \
+  --edge_mask_type object \
+  --explain_epochs 200 \
+  --top_fraction_edges 0.4 \
+  --checkpoints ../checkpoints \
+  --results_dir ../results
+```
+
+The explanation files are saved in `results/<setting>/`, alongside the original predictions.
+
+Useful explainer arguments:
+
+| Flag | Default | Meaning                                                                                 |
+|---|---|-----------------------------------------------------------------------------------------|
+| `--explain_epochs` | `200` | Optimization epochs for each explanation                                                |
+| `--edge_mask_type` | `object` | Generate edge-importance masks                                                          |
+| `--node_mask_type` | `none` | Disable node-feature explanations                                                       |
+| `--top_fraction_edges` | `0.4` | Fraction of highest-scoring edges used for motif analysis (picked by us after analysis) |
+| `--top_k` | `None` | Alternatively, select a fixed number of important edges                                 |
+
+The explainer does **not retrain the GNN**. It uses the already trained model to explain its predictions.
+
+For the analysis pipeline, we used two jupiter notebooks:
+- `analysis/threshold_analysis_train50w_v2.ipynb` which has the analysis we did to pick the `top_fraction_percentage`
+- `analysis/motif_analysis_train_50w_0.4.ipynb` which has the statistical analysis pipeline for motifs
+
+It is advisable to first fun the first notebook, as it also generates the explanation for our settings. 
+
+## 6. Notes
 
 - **Root weight.** In plain GCN a node's own features and its neighbours' features go through the same
   weight matrix, so "of -> the" and "the -> of" look almost the same and word order is lost. On the sanity
